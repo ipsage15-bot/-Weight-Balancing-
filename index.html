@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weight Balancing 자동 계산</title>
+<style>
+@media print{
+  body{padding:0;background:#fff;}
+  .no-print{display:none!important;}
+  .print-only{display:block!important;}
+  .card{break-inside:avoid;border:0.5px solid #ccc;box-shadow:none;}
+  .print-page{page-break-after:always;}
+  canvas{max-width:100%!important;}
+}
+.print-only{display:none;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#f5f5f3;--card:#fff;--bg2:#f0efea;--bg-info:#e6f1fb;--bg-ok:#eaf3de;--bg-warn:#faeeda;--bg-iv:#f3effe;--bg-avg:#fff3cd;--bg-sol:#fff0f5;
+  --t1:#1a1a18;--t2:#5f5e5a;--t3:#888780;--ti:#0c447c;--tok:#27500a;--tw:#633806;--td:#a32d2d;--tv:#3c3489;--tavg:#7a4f00;--tsol:#6b0030;
+  --b:rgba(0,0,0,0.12);--bh:rgba(0,0,0,0.25);--bi:rgba(24,95,165,0.4);--bd:rgba(163,45,45,0.4);--bo:rgba(39,80,10,0.4);--bv:rgba(60,52,137,0.4);--bsol:rgba(107,0,48,0.4);
+  --rmd:8px;--rlg:12px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#161614;--card:#1e1e1c;--bg2:#2a2a28;--bg-info:#0c2035;--bg-ok:#173404;--bg-warn:#412402;--bg-iv:#1a1840;--bg-avg:#2a1f00;--bg-sol:#2a0010;
+  --t1:#f0efe8;--t2:#b4b2a9;--t3:#888780;--ti:#85b7eb;--tok:#97c459;--tw:#ef9f27;--td:#f09595;--tv:#afa9ec;--tavg:#f0c040;--tsol:#f580a0;
+  --b:rgba(255,255,255,0.1);--bh:rgba(255,255,255,0.22);--bi:rgba(133,183,235,0.35);--bd:rgba(240,149,149,0.35);--bo:rgba(151,196,89,0.35);--bv:rgba(175,169,236,0.35);--bsol:rgba(245,128,160,0.35);
+}}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;background:var(--bg);color:var(--t1);padding:14px 18px 60px;}
+h1{font-size:17px;font-weight:500;margin-bottom:3px;}
+.sub{font-size:11px;color:var(--t3);margin-bottom:12px;}
+.card{background:var(--card);border:0.5px solid var(--b);border-radius:var(--rlg);padding:.85rem 1rem;margin-bottom:10px;}
+.ctitle{font-size:11px;font-weight:500;color:var(--t2);margin-bottom:8px;}
+.sbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:var(--card);border:0.5px solid var(--b);border-radius:var(--rlg);padding:7px 1rem;margin-bottom:10px;}
+.sdot{width:7px;height:7px;border-radius:50%;background:#888;flex-shrink:0;transition:background .3s;}
+.sdot.ok{background:#639922;}.sdot.pend{background:#BA7517;}
+.sstatus{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t3);}
+.btn{padding:4px 11px;font-size:11px;border:0.5px solid var(--bh);border-radius:var(--rmd);background:transparent;color:var(--t2);cursor:pointer;font-family:inherit;transition:background .12s;}
+.btn:hover{background:var(--bg2);}
+.btn-p{color:var(--ti);border-color:var(--bi);}
+.btn-g{color:var(--tok);border-color:var(--bo);}
+.btn-w{color:var(--tw);border-color:rgba(186,117,23,.4);}
+.btn-d{color:var(--td);border-color:var(--bd);}
+.btn-v{color:var(--tv);border-color:var(--bv);}
+.btn-sol{color:var(--tsol);border-color:var(--bsol);font-weight:500;}
+.btn-pdf{background:var(--ti);color:#fff;border-color:var(--ti);font-weight:500;padding:5px 14px;}
+.btn-pdf:hover{opacity:.88;background:var(--ti);}
+.brg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:5px;}
+@media(max-width:480px){.brg-grid{grid-template-columns:repeat(2,1fr);}}
+.bcard{border:0.5px solid var(--b);border-radius:var(--rmd);padding:6px 8px;cursor:pointer;transition:border-color .15s,background .15s;}
+.bcard:hover{border-color:var(--bh);}.bcard.on{border-color:#378ADD;background:var(--bg-info);}
+.btop{display:flex;align-items:center;gap:5px;margin-bottom:2px;}
+.bdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.bnum{font-size:10px;font-weight:500;}
+.bname{width:100%;font-size:11px;border:none;background:transparent;color:var(--t2);outline:none;font-family:inherit;}
+.bname:focus{color:var(--t1);}
+.tab{padding:3px 10px;font-size:11px;border:0.5px solid var(--bh);border-radius:var(--rmd);background:transparent;color:var(--t2);cursor:pointer;font-family:inherit;}
+.tab:hover{background:var(--bg2);}.tab.on{background:var(--bg-info);color:var(--ti);border-color:transparent;}
+.mtab{padding:3px 12px;font-size:11px;border:0.5px solid var(--bh);border-radius:var(--rmd);background:transparent;color:var(--t2);cursor:pointer;font-family:inherit;}
+.mtab:hover{background:var(--bg2);}.mtab.on{background:var(--bg-iv);color:var(--tv);border-color:transparent;}
+.toprow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;}
+.brg-filter{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;align-items:center;}
+.brg-ftab{padding:3px 10px;font-size:11px;border:0.5px solid var(--bh);border-radius:20px;background:transparent;color:var(--t2);cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;}
+.brg-ftab:hover{background:var(--bg2);}
+.phase-corr-box{display:flex;align-items:center;gap:10px;background:var(--bg-warn);border:0.5px solid rgba(186,117,23,.35);border-radius:var(--rmd);padding:7px 12px;margin-bottom:10px;flex-wrap:wrap;}
+.bal-meta-box{background:var(--bg-ok);border:0.5px solid var(--bo);border-radius:var(--rmd);padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.bal-meta-label{font-size:11px;font-weight:500;color:var(--tok);}
+.bal-meta-sel{display:flex;gap:4px;flex-wrap:wrap;}
+.bsel{padding:2px 8px;font-size:11px;border:0.5px solid var(--bo);border-radius:10px;background:transparent;color:var(--tok);cursor:pointer;font-family:inherit;}
+.bsel.on{background:var(--tok);color:#fff;}
+.phase-block{margin-bottom:14px;}
+.phase-label{font-size:11px;font-weight:500;padding:4px 10px;border-radius:var(--rmd);margin-bottom:6px;display:inline-block;}
+.phase-label.before{background:var(--bg-info);color:var(--ti);}
+.phase-label.after{background:var(--bg-ok);color:var(--tok);}
+.sx{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table.t{border-collapse:collapse;font-size:12px;width:100%;}
+table.t th{text-align:left;padding:5px 7px;font-size:11px;font-weight:500;color:var(--t2);border-bottom:0.5px solid var(--b);border-right:0.5px solid var(--b);white-space:nowrap;}
+table.t th:last-child{border-right:none;}
+table.t td{padding:3px 5px;border-bottom:0.5px solid var(--b);border-right:0.5px solid rgba(0,0,0,0.06);vertical-align:middle;}
+table.t td:last-child{border-right:none;}
+table.t .avg-row td{background:var(--bg-avg);color:var(--tavg);font-weight:500;font-size:11px;border-top:1.5px solid rgba(186,117,23,.4);}
+.ci{border:none;background:transparent;color:var(--t1);font-size:12px;padding:2px 3px;outline:none;font-family:inherit;width:100%;}
+.ci:focus{background:var(--bg2);border-radius:3px;padding:2px 5px;}
+.ni{width:52px;text-align:right;}
+.date-inp{border:none;background:transparent;color:var(--t1);font-size:12px;padding:2px 3px;outline:none;font-family:inherit;width:110px;cursor:pointer;}
+.date-inp:focus{background:var(--bg2);border-radius:3px;padding:2px 5px;}
+.hint{font-size:11px;color:var(--t3);margin-top:5px;}
+.ax-badge{display:inline-block;padding:1px 5px;border-radius:4px;font-size:9px;font-weight:500;}
+.ax-x{background:var(--bg-info);color:var(--ti);}
+.ax-y{background:var(--bg-iv);color:var(--tv);}
+/* IV */
+.iv-plane-wrap{border:0.5px solid var(--b);border-radius:var(--rmd);margin-bottom:10px;overflow:hidden;}
+.iv-plane-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:0.5px solid var(--b);}
+.iv-body{padding:10px 12px;}
+.auto-box{background:var(--bg-info);border:0.5px solid var(--bi);border-radius:var(--rmd);padding:8px 12px;margin-bottom:10px;}
+.auto-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--ti);}
+.tw-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--t2);background:var(--bg2);border-radius:var(--rmd);padding:6px 10px;margin-bottom:10px;}
+.shared-g-row{display:flex;align-items:center;gap:8px;background:var(--bg-warn);border:0.5px solid rgba(186,117,23,.35);border-radius:var(--rmd);padding:6px 10px;margin-bottom:8px;font-size:11px;color:var(--tw);flex-wrap:wrap;}
+.iv-matrix{border:0.5px solid var(--b);border-radius:var(--rmd);overflow:hidden;margin-bottom:10px;}
+table.iv-tbl{border-collapse:collapse;width:100%;font-size:11px;}
+table.iv-tbl th{background:var(--bg2);padding:5px 8px;font-size:10px;font-weight:500;color:var(--t3);border-bottom:0.5px solid var(--b);text-align:center;white-space:nowrap;}
+table.iv-tbl td{padding:4px 6px;border-bottom:0.5px solid var(--b);vertical-align:middle;}
+table.iv-tbl tr:last-child td{border-bottom:none;}
+.iv-inp{width:60px;padding:2px 5px;font-size:11px;border:0.5px solid var(--bh);border-radius:var(--rmd);background:var(--card);color:var(--t1);font-family:inherit;text-align:right;}
+.iv-inp.auto-val{background:var(--bg-ok);color:var(--tok);border-color:var(--bo);}
+.iv-inp.manual-val{background:var(--bg-iv);color:var(--tv);border-color:var(--bv);}
+/* 교정 Weight */
+.cw-section{border:0.5px solid var(--bo);border-radius:var(--rmd);overflow:hidden;margin-top:4px;}
+.cw-header{background:var(--bg-ok);padding:6px 12px;font-size:11px;font-weight:500;color:var(--tok);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.cw-inputs{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.cw-body{padding:8px 12px;}
+table.pred-tbl{border-collapse:collapse;width:100%;font-size:11px;}
+table.pred-tbl th{text-align:left;padding:4px 8px;font-size:10px;font-weight:500;color:var(--t3);border-bottom:0.5px solid var(--b);white-space:nowrap;}
+table.pred-tbl td{padding:4px 8px;border-bottom:0.5px solid var(--b);vertical-align:middle;white-space:nowrap;}
+table.pred-tbl tr:last-child td{border-bottom:none;}
+.delta-ok{color:var(--tok);font-weight:500;}
+.delta-ng{color:var(--td);font-weight:500;}
+.ngrow{background:var(--bg-warn);border-top:0.5px solid rgba(186,117,23,.3);padding:8px 12px;font-size:11px;color:var(--tw);}
+.ng-inputs{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
+/* 역산 섹션 */
+.inv-section{border:0.5px solid var(--bsol);border-radius:var(--rmd);overflow:hidden;margin-top:8px;}
+.inv-header{background:var(--bg-sol);padding:8px 12px;border-bottom:0.5px solid var(--bsol);}
+.inv-title{font-size:12px;font-weight:500;color:var(--tsol);margin-bottom:4px;}
+.inv-desc{font-size:10px;color:var(--tsol);opacity:.8;}
+.inv-body{padding:10px 12px;}
+.date-check-grid{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.date-chk-item{display:flex;align-items:center;gap:4px;font-size:11px;padding:3px 8px;border:0.5px solid var(--b);border-radius:var(--rmd);cursor:pointer;background:var(--card);}
+.date-chk-item.sel{background:var(--bg-sol);border-color:var(--bsol);color:var(--tsol);}
+.inv-result-box{background:var(--bg2);border-radius:var(--rmd);padding:8px 12px;margin-top:8px;}
+.inv-result-title{font-size:11px;font-weight:500;color:var(--t2);margin-bottom:6px;}
+table.inv-tbl{border-collapse:collapse;width:100%;font-size:11px;}
+table.inv-tbl th{background:var(--bg2);padding:4px 8px;font-size:10px;font-weight:500;color:var(--t3);border-bottom:0.5px solid var(--b);text-align:center;white-space:nowrap;}
+table.inv-tbl td{padding:5px 8px;border-bottom:0.5px solid var(--b);text-align:center;vertical-align:middle;}
+table.inv-tbl tr:last-child td{border-bottom:none;}
+.sol-highlight{color:var(--tsol);font-weight:600;font-size:13px;}
+/* Alarm/Trip */
+.alarm-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:var(--bg2);border-radius:var(--rmd);padding:8px 12px;margin-bottom:8px;font-size:11px;}
+.alarm-item{display:flex;align-items:center;gap:6px;}
+.alarm-dot-alarm{width:10px;height:10px;border-radius:50%;background:#e6a817;flex-shrink:0;}
+.alarm-dot-trip{width:10px;height:10px;border-radius:50%;background:#d42f2f;flex-shrink:0;}
+/* Polar 설정 */
+.settings{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+.si{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2);}
+.si label{display:flex;align-items:center;gap:4px;cursor:pointer;}
+.si select,.si input[type=number]{padding:3px 6px;font-size:11px;border:0.5px solid var(--bh);border-radius:var(--rmd);background:var(--bg2);color:var(--t1);font-family:inherit;}
+.si input[type=number]{width:58px;}
+.polar-brg-filter{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;}
+.pbf{padding:2px 9px;font-size:11px;border-radius:10px;border:0.5px solid var(--bh);background:transparent;color:var(--t2);cursor:pointer;font-family:inherit;}
+.pbf:hover{background:var(--bg2);}
+canvas{display:block;margin:0 auto;max-width:100%;}
+.leg{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.li{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--t2);}
+.ldot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.hsep{width:100%;height:0.5px;background:var(--b);margin:4px 0;}
+.pill{display:inline-block;padding:1px 6px;border-radius:6px;font-size:9px;font-weight:500;}
+.pill-g{background:var(--bg-ok);color:var(--tok);}
+.pill-v{background:var(--bg-iv);color:var(--tv);}
+input[type=file]{display:none;}
+.inp-nm{padding:3px 6px;font-size:11px;border:0.5px solid var(--bh);border-radius:var(--rmd);background:var(--card);color:var(--t1);font-family:inherit;}
+.sel-sm{padding:3px 6px;font-size:11px;border:0.5px solid var(--bh);border-radius:var(--rmd);background:var(--card);color:var(--t1);font-family:inherit;}
+</style>
+</head>
+<body>
+<div class="no-print" style="display:flex;align-items:baseline;gap:10px;margin-bottom:3px;flex-wrap:wrap;">
+  <input id="report-title" type="text" value="Weight Balancing 자동 계산"
+    style="font-size:17px;font-weight:500;border:none;background:transparent;color:var(--t1);outline:none;font-family:inherit;flex:1;min-width:260px;border-bottom:1px dashed var(--b);padding-bottom:2px;"
+    title="클릭하여 제목 편집" onchange="saveAuto()">
+  <span style="font-size:11px;color:var(--t3);">Polar Sheet 분석</span>
+</div>
+<p class="sub no-print">BRG #1~8 &nbsp;·&nbsp; 교정 Weight 역산 &nbsp;·&nbsp; 복수 날짜 절충안 &nbsp;·&nbsp; PDF 보고서 &nbsp;·&nbsp; Alarm/Trip 기준선</p>
+
+<div class="sbar no-print">
+  <div class="sstatus"><div class="sdot" id="sdot"></div><span id="slbl">초기화 중...</span></div>
+  <div style="display:flex;gap:5px;flex-wrap:wrap;">
+    <button class="btn btn-pdf" onclick="printReport()">&#x1F5A8; PDF 보고서 출력</button>
+    <button class="btn btn-g" onclick="exportJSON()">&#x2913; JSON 저장</button>
+    <button class="btn btn-w" onclick="document.getElementById('fin').click()">&#x2912; 불러오기</button>
+    <button class="btn btn-d" onclick="clearAll()">초기화</button>
+    <input type="file" id="fin" accept=".json" onchange="importJSON(event)">
+  </div>
+</div>
+
+<!-- 베어링 -->
+<div class="card no-print">
+  <p class="ctitle">&#9654; 베어링 선택 및 명칭</p>
+  <div class="brg-grid" id="brg-grid"></div>
+  <p class="hint">카드 클릭 → 활성/비활성 &nbsp;·&nbsp; 명칭 클릭 → 편집</p>
+</div>
+
+<!-- 측정 데이터 -->
+<div class="card no-print">
+  <div class="toprow">
+    <p class="ctitle" style="margin:0;">&#9654; 측정 데이터</p>
+    <div class="si">단위:
+      <select id="unit-sel" onchange="saveAuto();renderMeas();renderIV();draw()">
+        <option value="um">&mu;m (p-p)</option>
+        <option value="mils">mils (p-p)</option>
+        <option value="mms">mm/s (RMS)</option>
+      </select>
+    </div>
+  </div>
+  <div class="phase-corr-box">
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:500;color:var(--tw);">
+      <input type="checkbox" id="chk-phase-corr" onchange="saveAuto();renderMeas();renderIV();draw()">
+      위상 보정 (X축 &minus;45°, Y축 +45°)
+    </label>
+    <span style="font-size:10px;color:var(--tw);opacity:.8;">ON 시 모든 입력 위상에 자동 보정 적용</span>
+  </div>
+  <div class="brg-filter" id="meas-brg-filter"></div>
+  <div class="phase-block">
+    <span class="phase-label before">&#9632; 밸런싱 전 (Before Balancing)</span>
+    <div class="sx" id="meas-before"></div>
+    <button class="btn btn-p no-print" style="margin-top:6px;" onclick="addRow('before')">+ 날짜 추가</button>
+  </div>
+  <div class="phase-block" style="margin-bottom:0;">
+    <span class="phase-label after">&#9632; 밸런싱 후 (After Balancing)</span>
+    <div class="bal-meta-box" id="bal-meta-box">
+      <span class="bal-meta-label">밸런싱 수행 정보:</span>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--tok);">
+        <span>날짜:</span>
+        <input type="date" id="bal-date" class="inp-nm" style="background:var(--card);" onchange="saveAuto()">
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--tok);">
+        <span>적용 평면:</span>
+        <div class="bal-meta-sel" id="bal-plane-sel"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--tok);">
+        <span>Weight:</span>
+        <input type="number" id="bal-weight" class="inp-nm" style="width:62px;text-align:right;background:var(--card);" placeholder="g" min="0" onchange="saveAuto()">
+        <span>g &nbsp;@</span>
+        <input type="number" id="bal-phase" class="inp-nm" style="width:56px;text-align:right;background:var(--card);" placeholder="0°" min="0" max="359" onchange="saveAuto()">
+        <span>°</span>
+      </div>
+    </div>
+    <div class="sx" id="meas-after"></div>
+    <button class="btn btn-g no-print" style="margin-top:6px;" onclick="addRow('after')">+ 날짜 추가</button>
+  </div>
+</div>
+
+<!-- IV + 교정 Weight + 역산 -->
+<div class="card no-print">
+  <div class="toprow">
+    <p class="ctitle" style="margin:0;">&#9654; Influence Vector &amp; 교정 Weight</p>
+    <label class="si"><input type="checkbox" id="chk-iv" onchange="saveAuto();draw()"> Polar Sheet 표시</label>
+  </div>
+  <p class="hint" style="margin-bottom:10px;">
+    <strong>&#945; = (B &minus; A) / W</strong> &nbsp;[단위/g] &nbsp;|&nbsp;
+    <strong>&#945;&#8320; = &#945; &times; e<sup>&minus;j&#952;_w</sup></strong> (0° 기준) &nbsp;|&nbsp;
+    역산: <strong>C = &minus;A / &#945;&#8320;</strong> (복소수)
+  </p>
+  <div id="iv-planes"></div>
+  <button class="btn btn-v" onclick="addPlane()">+ Trial Plane 추가</button>
+</div>
+
+<!-- Polar Sheet -->
+<div class="card" id="polar-card">
+  <div class="toprow no-print">
+    <p class="ctitle" style="margin:0;">&#9654; Polar Sheet &nbsp;<span style="font-size:10px;color:var(--t3);">12시=0°, CCW</span></p>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <label class="si"><input type="checkbox" id="chk-sol-polar" onchange="draw()"> 역산 절충안 표시</label>
+    </div>
+  </div>
+  <!-- Alarm / Trip 기준 -->
+  <div class="alarm-row no-print">
+    <div class="alarm-item">
+      <div class="alarm-dot-alarm"></div>
+      <span style="font-size:11px;color:var(--t2);">Alarm:</span>
+      <input type="number" id="alarm-val" class="inp-nm" style="width:64px;text-align:right;" placeholder="μm" min="0" oninput="saveAuto();draw()">
+      <span style="font-size:11px;color:var(--t3);" id="alarm-unit-lbl">μm</span>
+    </div>
+    <div class="alarm-item">
+      <div class="alarm-dot-trip"></div>
+      <span style="font-size:11px;color:var(--t2);">Trip:</span>
+      <input type="number" id="trip-val" class="inp-nm" style="width:64px;text-align:right;" placeholder="μm" min="0" oninput="saveAuto();draw()">
+      <span style="font-size:11px;color:var(--t3);" id="trip-unit-lbl">μm</span>
+    </div>
+    <span style="font-size:10px;color:var(--t3);">Polar Sheet에 원형 기준선으로 표시</span>
+  </div>
+  <div class="settings no-print">
+    <div class="si">스케일 최대
+      <input type="number" id="scale-max" value="120" min="1" step="10" oninput="saveAuto();draw()">
+      <span id="scale-unit-lbl" style="font-size:10px;color:var(--t3);">μm</span>
+    </div>
+    <div class="si"><label><input type="checkbox" id="chk-lbl" checked onchange="draw()"> 날짜 레이블</label></div>
+    <div class="si"><label><input type="checkbox" id="chk-trail" checked onchange="draw()"> 측정점 궤적</label></div>
+    <div class="si"><label><input type="checkbox" id="chk-avg-arrow" checked onchange="draw()"> 평균 화살표</label></div>
+    <div class="si"><label><input type="checkbox" id="chk-both-ax" checked onchange="renderPolarBrgFilter();draw()"> X+Y 동시</label></div>
+    <div class="si"><label><input type="checkbox" id="chk-pred-vec" checked onchange="draw()"> 예상 이동 벡터</label></div>
+  </div>
+  <div class="polar-brg-filter no-print" id="polar-brg-filter"></div>
+  <canvas id="polar" width="600" height="600"></canvas>
+  <div class="leg no-print" id="legend"></div>
+</div>
+
+<script>
+var BC  = ['#378ADD','#1D9E75','#D85A30','#D4537E','#BA7517','#534AB7','#639922','#5F5E5A'];
+var BC2 = ['#85B7EB','#5DCAA5','#F0997B','#ED93B1','#EF9F27','#AFA9EC','#97C459','#B4B2A9'];
+var PLC = ['#7F77DD','#D85A30','#1D9E75','#D4537E','#BA7517'];
+var AVG_BF='#D4900A', AVG_AF='#27500a', SOL_COLOR='#C2006B';
+var SKEY='polarsheet_v8';
+var saveTimer=null;
+var tabIdx=100; /* 전역 연속 tabIndex — renderMeas 호출마다 이어받음 */
+
+var bearings=[];
+for(var i=0;i<8;i++) bearings.push({id:i,name:'BRG #'+(i+1),active:i<4});
+
+var measBefore=[{id:1,date:'',note:'',data:{}},{id:2,date:'',note:'',data:{}}];
+var measAfter=[{id:101,date:'',note:'',data:{}}];
+var nextId=200;
+var measBrgSel=-1;
+var balDate='',balWeight='',balPhase='';
+var balPlanes={};
+var polarBrgFilter={};
+
+var ivPlanes=[{
+  id:1,name:'Trial Plane 1',mode:'auto',
+  twWeight:'',twAngle:'0',condBase:'',condTrial:'',useAllBase:false,useAllTrial:false,
+  ivs:{},sharedG:'',
+  cwWeight:'',cwAngle:'0',cwBaseCond:'',cwBaseMode:'',useAllBase2:false,ngWeight:'',
+  invSelDates:{},invResult:null
+}];
+var nextPlaneId=2;
+
+/* ── 저장 ── */
+function getState(){
+  return{
+    bearings:bearings.map(function(b){return{id:b.id,name:b.name,active:b.active};}),
+    measBefore:measBefore,measAfter:measAfter,nextId:nextId,
+    measBrgSel:measBrgSel,balDate:balDate,balWeight:balWeight,balPhase:balPhase,balPlanes:balPlanes,
+    polarBrgFilter:polarBrgFilter,ivPlanes:ivPlanes,nextPlaneId:nextPlaneId,
+    scaleMax:document.getElementById('scale-max').value,
+    reportTitle:document.getElementById('report-title').value,
+    unit:document.getElementById('unit-sel').value,
+    alarmVal:document.getElementById('alarm-val').value,
+    tripVal:document.getElementById('trip-val').value,
+    phaseCorr:document.getElementById('chk-phase-corr').checked,
+    showIV:document.getElementById('chk-iv').checked,
+    showLbl:document.getElementById('chk-lbl').checked,
+    showTrail:document.getElementById('chk-trail').checked,
+    showAvgArrow:document.getElementById('chk-avg-arrow').checked,
+    showBothAx:document.getElementById('chk-both-ax').checked,
+    showPredVec:document.getElementById('chk-pred-vec').checked,
+    showSolPolar:document.getElementById('chk-sol-polar').checked
+  };
+}
+function applyState(s){
+  if(!s)return;
+  if(s.bearings) s.bearings.forEach(function(b,i){if(i<8){bearings[i].name=b.name||bearings[i].name;bearings[i].active=b.active!==undefined?b.active:bearings[i].active;}});
+  if(s.measBefore)   measBefore=s.measBefore;
+  if(s.measAfter)    measAfter=s.measAfter;
+  if(s.nextId)       nextId=s.nextId;
+  if(s.measBrgSel!==undefined) measBrgSel=s.measBrgSel; else measBrgSel=-1;
+  if(s.balDate)      balDate=s.balDate;
+  if(s.balWeight)    balWeight=s.balWeight;
+  if(s.balPhase)     balPhase=s.balPhase;
+  if(s.balPlanes)    balPlanes=s.balPlanes;
+  if(s.polarBrgFilter) polarBrgFilter=s.polarBrgFilter;
+  if(s.ivPlanes)     ivPlanes=s.ivPlanes;
+  if(s.nextPlaneId)  nextPlaneId=s.nextPlaneId;
+  if(s.scaleMax)     document.getElementById('scale-max').value=s.scaleMax;
+  if(s.reportTitle)  document.getElementById('report-title').value=s.reportTitle;
+  if(s.unit)         document.getElementById('unit-sel').value=s.unit;
+  if(s.alarmVal)     document.getElementById('alarm-val').value=s.alarmVal;
+  if(s.tripVal)      document.getElementById('trip-val').value=s.tripVal;
+  if(s.phaseCorr!==undefined)    document.getElementById('chk-phase-corr').checked=s.phaseCorr;
+  if(s.showIV!==undefined)       document.getElementById('chk-iv').checked=s.showIV;
+  if(s.showLbl!==undefined)      document.getElementById('chk-lbl').checked=s.showLbl;
+  if(s.showTrail!==undefined)    document.getElementById('chk-trail').checked=s.showTrail;
+  if(s.showAvgArrow!==undefined) document.getElementById('chk-avg-arrow').checked=s.showAvgArrow;
+  if(s.showBothAx!==undefined)   document.getElementById('chk-both-ax').checked=s.showBothAx;
+  if(s.showPredVec!==undefined)  document.getElementById('chk-pred-vec').checked=s.showPredVec;
+  if(s.showSolPolar!==undefined) document.getElementById('chk-sol-polar').checked=s.showSolPolar;
+  document.getElementById('bal-date').value=balDate;
+  document.getElementById('bal-weight').value=balWeight;
+  document.getElementById('bal-phase').value=balPhase;
+  updateScaleUnitLbl();updateAlarmUnitLbl();
+}
+function saveAuto(){
+  balDate=document.getElementById('bal-date').value;
+  balWeight=document.getElementById('bal-weight').value;
+  balPhase=document.getElementById('bal-phase').value;
+  clearTimeout(saveTimer);setSave('pend');
+  saveTimer=setTimeout(function(){try{localStorage.setItem(SKEY,JSON.stringify(getState()));setSave('ok');}catch(e){setSave('err');}},700);
+}
+function setSave(st){
+  var dot=document.getElementById('sdot'),lbl=document.getElementById('slbl');
+  if(st==='ok')  {dot.className='sdot ok';  lbl.textContent='자동저장 완료 — '+timeStr();}
+  if(st==='pend'){dot.className='sdot pend';lbl.textContent='저장 대기 중...';}
+  if(st==='err') {dot.className='sdot';     lbl.textContent='저장 실패';}
+}
+function timeStr(){var d=new Date();return d.getHours()+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);}
+function exportJSON(){
+  var blob=new Blob([JSON.stringify(getState(),null,2)],{type:'application/json'});
+  var url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='polarsheet_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();URL.revokeObjectURL(url);setSave('ok');
+}
+function importJSON(e){
+  var f=e.target.files[0];if(!f)return;
+  var r=new FileReader();
+  r.onload=function(ev){try{applyState(JSON.parse(ev.target.result));renderAll();saveAuto();}catch(ex){alert('JSON 파일 오류');}};
+  r.readAsText(f);e.target.value='';
+}
+function clearAll(){if(!confirm('초기화하시겠습니까?'))return;localStorage.removeItem(SKEY);location.reload();}
+function updateScaleUnitLbl(){document.getElementById('scale-unit-lbl').textContent=ul();}
+function updateAlarmUnitLbl(){var u=ul();document.getElementById('alarm-unit-lbl').textContent=u;document.getElementById('trip-unit-lbl').textContent=u;}
+
+/* ── 유틸 ── */
+function dk(bid,ax){return 'b'+bid+'_'+ax;}
+function ivk(bid,ax){return 'b'+bid+'_'+ax;}
+function ul(){var u=document.getElementById('unit-sel').value;return u==='um'?'\u03bcm':u==='mils'?'mils':'mm/s';}
+function fmtDate(d){if(!d)return '날짜 없음';var p=d.split('-');return p.length===3?(p[1]+'/'+p[2]):d;}
+
+function corrPhase(rawPhase,ax){
+  if(!document.getElementById('chk-phase-corr').checked)return parseFloat(rawPhase);
+  var p=parseFloat(rawPhase);if(isNaN(p))return p;
+  return((p+(ax==='X'?-45:45))%360+360)%360;
+}
+
+/* ── 복소수 ── */
+function toRect(amp,deg){var a=parseFloat(amp),d=parseFloat(deg);if(isNaN(a)||isNaN(d))return null;return{re:a*Math.cos(d*Math.PI/180),im:a*Math.sin(d*Math.PI/180)};}
+function toPolar(re,im){var amp=Math.sqrt(re*re+im*im),ph=Math.atan2(im,re)*180/Math.PI;if(ph<0)ph+=360;return{amp:amp,phase:ph};}
+function addVec(a,b){return{re:a.re+b.re,im:a.im+b.im};}
+function subVec(a,b){return{re:a.re-b.re,im:a.im-b.im};}
+function scaleVec(v,k){return{re:v.re*k,im:v.im*k};}
+function rotateVec(v,deg){var r=deg*Math.PI/180;return{re:v.re*Math.cos(r)-v.im*Math.sin(r),im:v.re*Math.sin(r)+v.im*Math.cos(r)};}
+/* 복소수 나눗셈: a/b */
+function divVec(a,b){var d=b.re*b.re+b.im*b.im;if(d<1e-12)return null;return{re:(a.re*b.re+a.im*b.im)/d,im:(a.im*b.re-a.re*b.im)/d};}
+
+function measToVec(m,bid,ax){
+  var v=m.data[dk(bid,ax)];if(!v||v.amp===''||v.phase==='')return null;
+  var cp=corrPhase(v.phase,ax);return toRect(v.amp,cp);
+}
+function getVecByDate(date,bid,ax){
+  var all=measBefore.concat(measAfter);
+  for(var i=0;i<all.length;i++) if(all[i].date===date) return measToVec(all[i],bid,ax);
+  return null;
+}
+function getAvgVec(phase,bid,ax){
+  var meas=phase==='before'?measBefore:phase==='after'?measAfter:measBefore.concat(measAfter);
+  var sum={re:0,im:0},n=0;
+  meas.forEach(function(m){var v=measToVec(m,bid,ax);if(v){sum=addVec(sum,v);n++;}});
+  if(!n)return null;return toPolar(sum.re/n,sum.im/n);
+}
+
+/* IV 계산 */
+function computeIV(plane,bid,ax){
+  var A=null,B=null;
+  if(plane.useAllBase){var a=getAvgVec('before',bid,ax);if(a)A=toRect(a.amp,a.phase);}
+  else if(plane.condBase)A=getVecByDate(plane.condBase,bid,ax);
+  if(plane.useAllTrial){var b=getAvgVec('after',bid,ax);if(b)B=toRect(b.amp,b.phase);}
+  else if(plane.condTrial)B=getVecByDate(plane.condTrial,bid,ax);
+  if(!A||!B)return null;
+  var diff=subVec(B,A);
+  var W=parseFloat(plane.twWeight);
+  var alpha=(!isNaN(W)&&W>0)?scaleVec(diff,1.0/W):diff;
+  var tW=parseFloat(plane.twAngle)||0;
+  var alpha0=rotateVec(alpha,-tW);
+  return{raw:toPolar(alpha.re,alpha.im),norm:toPolar(alpha0.re,alpha0.im)};
+}
+
+/* 교정 Weight 예상 진동 */
+function getPredicted(plane,bid,ax,cwW,cwA){
+  var key=ivk(bid,ax);
+  if(!plane.ivs||!plane.ivs[key])return null;
+  var iv=plane.ivs[key];
+  if(iv.amp===''||iv.phase0==='')return null;
+  var alpha0=toRect(iv.amp,iv.phase0);if(!alpha0)return null;
+  var C=parseFloat(cwW),phiC=parseFloat(cwA);
+  if(isNaN(C)||C<=0||isNaN(phiC))return null;
+  /* 교정 Weight 복소수: C×e^(jφ_c) */
+  var Cvec=toRect(C,phiC);if(!Cvec)return null;
+  /* 예상 변화량 = α₀ × Cvec (복소수 곱셈) */
+  var changeVec={
+    re: alpha0.re*Cvec.re - alpha0.im*Cvec.im,
+    im: alpha0.re*Cvec.im + alpha0.im*Cvec.re
+  };
+  var baseVec=getBaseVec(plane,bid,ax);
+  if(!baseVec)return null;
+  var res=addVec(baseVec,changeVec);return toPolar(res.re,res.im);
+}
+function getBaseVec(plane,bid,ax){
+  if(plane.cwBaseMode==='__bf_avg__'||plane.useAllBase2){var a=getAvgVec('before',bid,ax);if(a)return toRect(a.amp,a.phase);}
+  else if(plane.cwBaseMode==='__af_avg__'){var a=getAvgVec('after',bid,ax);if(a)return toRect(a.amp,a.phase);}
+  else if(plane.cwBaseCond)return getVecByDate(plane.cwBaseCond,bid,ax);
+  return null;
+}
+
+/* ★ 교정 Weight 역산: C = -A / α₀
+   복수 날짜 선택 시 각 날짜별 A를 평균한 벡터를 기준으로 역산
+   결과: 베어링별 X/Y축 각각의 교정 Weight (크기+위상)
+   "절충안": 모든 활성 베어링+축의 역산 결과 벡터들의 평균 → 단일 교정 Weight 제안
+*/
+function computeInverse(plane){
+  var ab=bearings.filter(function(b){return b.active;});
+  var selDates=Object.keys(plane.invSelDates||{}).filter(function(d){return plane.invSelDates[d];});
+  if(!selDates.length) return null;
+
+  var results={}; /* {brgId_ax: {C_amp, C_phase, A_amp, A_phase}} */
+  var solVecs=[]; /* 절충안 계산용 복소수 벡터 목록 */
+
+  ab.forEach(function(b){
+    ['X','Y'].forEach(function(ax){
+      var key=ivk(b.id,ax);
+      var iv=plane.ivs?plane.ivs[key]:null;
+      if(!iv||iv.amp===''||iv.phase0==='')return;
+      var alpha0=toRect(iv.amp,iv.phase0);
+      if(!alpha0)return;
+
+      /* 선택 날짜들의 A 벡터 평균 */
+      var sumA={re:0,im:0},n=0;
+      selDates.forEach(function(d){
+        var v=getVecByDate(d,b.id,ax);
+        if(v){sumA=addVec(sumA,v);n++;}
+      });
+      if(!n)return;
+      var Avec={re:sumA.re/n,im:sumA.im/n};
+      var Apolar=toPolar(Avec.re,Avec.im);
+
+      /* C = -A / α₀ */
+      var negA={re:-Avec.re,im:-Avec.im};
+      var Cvec=divVec(negA,alpha0);
+      if(!Cvec)return;
+      var Cpolar=toPolar(Cvec.re,Cvec.im);
+
+      results[b.id+'_'+ax]={
+        brgName:b.name,ax:ax,
+        A_amp:Apolar.amp,A_phase:Apolar.phase,
+        C_amp:Cpolar.amp,C_phase:Cpolar.phase,
+        Cvec:Cvec
+      };
+      solVecs.push(Cvec);
+    });
+  });
+
+  if(!solVecs.length) return null;
+
+  /* 절충안: 모든 역산 C벡터의 평균 */
+  var sumC={re:0,im:0};
+  solVecs.forEach(function(v){sumC=addVec(sumC,v);});
+  var avgC={re:sumC.re/solVecs.length,im:sumC.im/solVecs.length};
+  var avgCpolar=toPolar(avgC.re,avgC.im);
+
+  return{perAxis:results,solution:{amp:avgCpolar.amp,phase:avgCpolar.phase,vec:avgC},selDates:selDates};
+}
+
+/* ── PDF 보고서 출력 ── */
+function printReport(){
+  draw();
+  var ab=bearings.filter(function(b){return b.active;});
+  var unit=ul();
+  var canvasImg=document.getElementById('polar').toDataURL('image/png');
+  var reportTitle=document.getElementById('report-title').value||'Weight Balancing 자동 계산';
+  var now=new Date();
+  var dateStr=now.getFullYear()+'.'+(now.getMonth()+1)+'.'+now.getDate();
+  var alarmVal=document.getElementById('alarm-val').value;
+  var tripVal=document.getElementById('trip-val').value;
+
+  /* 측정 데이터 테이블 (날짜별 행) */
+  function measTable(meas, phase){
+    if(!meas.length) return '';
+    var bgH = phase==='before'?'#EFF6FF':'#ECFDF5';
+    var colH = phase==='before'?'#1E2D5A':'#16a34a';
+    var label = phase==='before'?'밸런싱 전 측정 데이터':'밸런싱 후 측정 데이터';
+    var html='<p style="font-size:10px;font-weight:700;color:'+colH+';margin:8px 0 3px;">'+label+'</p>';
+    html+='<table style="border-collapse:collapse;width:100%;font-size:9.5px;margin-bottom:6px;">';
+    /* 헤더 1행: 날짜 + 베어링별 colspan */
+    html+='<thead><tr style="background:'+bgH+';">';
+    html+='<th style="padding:3px 6px;border:0.5px solid #ddd;text-align:left;white-space:nowrap;">날짜</th>';
+    ab.forEach(function(b){
+      html+='<th colspan="2" style="padding:3px 6px;border:0.5px solid #ddd;text-align:center;">'+b.name+'</th>';
+    });
+    html+='</tr>';
+    /* 헤더 2행: X/Y */
+    html+='<tr style="background:'+bgH+';">';
+    html+='<th style="padding:2px 6px;border:0.5px solid #ddd;"></th>';
+    ab.forEach(function(){
+      ['X','Y'].forEach(function(ax){
+        html+='<th style="padding:2px 6px;border:0.5px solid #ddd;text-align:center;font-weight:500;font-size:9px;">'+ax+' ('+unit+' @ °)</th>';
+      });
+    });
+    html+='</tr></thead><tbody>';
+    /* 데이터 행 */
+    meas.forEach(function(m){
+      html+='<tr>';
+      html+='<td style="padding:3px 6px;border:0.5px solid #ddd;white-space:nowrap;font-weight:600;">'+fmtDate(m.date)+'</td>';
+      ab.forEach(function(b){
+        ['X','Y'].forEach(function(ax){
+          var v=m.data['b'+b.id+'_'+ax];
+          var txt=(v&&v.amp!==''&&v.phase!=='')?v.amp+' @ '+v.phase+'°':'—';
+          html+='<td style="padding:3px 6px;border:0.5px solid #ddd;text-align:center;">'+txt+'</td>';
+        });
+      });
+      html+='</tr>';
+    });
+    /* 벡터 평균 행 */
+    html+='<tr style="background:#fffbeb;font-weight:600;">';
+    html+='<td style="padding:3px 6px;border:0.5px solid #ddd;color:#78350F;">벡터 평균</td>';
+    ab.forEach(function(b){
+      ['X','Y'].forEach(function(ax){
+        var avg=getAvgVec(phase,b.id,ax);
+        var txt=avg?avg.amp.toFixed(2)+' @ '+avg.phase.toFixed(1)+'°':'—';
+        html+='<td style="padding:3px 6px;border:0.5px solid #ddd;text-align:center;color:#78350F;">'+txt+'</td>';
+      });
+    });
+    html+='</tr></tbody></table>';
+    return html;
+  }
+
+  /* 절충안 */
+  function solBox(){
+    var html='';
+    ivPlanes.forEach(function(plane){
+      if(!plane.invResult)return;
+      var res=plane.invResult;
+      html+=
+        '<div style="background:#fff0f5;border:1.5px solid #e080a0;border-radius:6px;padding:7px 12px;margin-bottom:6px;">'+
+        '<span style="font-size:9.5px;color:#c2006b;font-weight:600;">⚖️ 절충안 교정 Weight ('+res.selDates.map(fmtDate).join(', ')+' 기준)</span><br>'+
+        '<span style="font-size:16px;font-weight:700;color:#c2006b;">'+res.solution.amp.toFixed(2)+'g &nbsp;@&nbsp; '+res.solution.phase.toFixed(1)+'°</span>'+
+        '</div>';
+    });
+    return html;
+  }
+
+  /* 교정 Weight 예상 진동 */
+  function predTable(){
+    var rows='';
+    ivPlanes.forEach(function(plane){
+      if(!plane.cwWeight)return;
+      ab.forEach(function(b){
+        ['X','Y'].forEach(function(ax){
+          var bv=getBaseVec(plane,b.id,ax);
+          var pred=getPredicted(plane,b.id,ax,plane.cwWeight,plane.cwAngle);
+          if(!bv||!pred)return;
+          var bP=toPolar(bv.re,bv.im);
+          var dl=pred.amp-bP.amp;
+          rows+=
+            '<tr>'+
+            '<td style="padding:3px 6px;border:0.5px solid #ddd;">'+b.name+'</td>'+
+            '<td style="padding:3px 6px;border:0.5px solid #ddd;text-align:center;">'+ax+'</td>'+
+            '<td style="padding:3px 6px;border:0.5px solid #ddd;text-align:center;">'+bP.amp.toFixed(2)+' '+unit+' @ '+bP.phase.toFixed(1)+'°</td>'+
+            '<td style="padding:3px 6px;border:0.5px solid #ddd;text-align:center;font-weight:600;">'+pred.amp.toFixed(2)+' '+unit+' @ '+pred.phase.toFixed(1)+'°</td>'+
+            '<td style="padding:3px 6px;border:0.5px solid #ddd;text-align:center;font-weight:600;color:'+(dl<0?'#16a34a':'#dc2626')+';"> '+(dl>=0?'+':'')+dl.toFixed(2)+' '+unit+'</td>'+
+            '</tr>';
+        });
+      });
+    });
+    if(!rows)return '';
+    return '<p style="font-size:10px;font-weight:700;color:#7C3AED;margin:8px 0 3px;">교정 Weight 적용 후 예상 진동</p>'+
+      '<table style="border-collapse:collapse;width:100%;font-size:9.5px;margin-bottom:6px;">'+
+      '<thead><tr style="background:#F5F3FF;">'+
+        '<th style="padding:3px 6px;border:0.5px solid #ddd;text-align:left;">베어링</th>'+
+        '<th style="padding:3px 6px;border:0.5px solid #ddd;">축</th>'+
+        '<th style="padding:3px 6px;border:0.5px solid #ddd;">현재 진동</th>'+
+        '<th style="padding:3px 6px;border:0.5px solid #ddd;">예상 진동</th>'+
+        '<th style="padding:3px 6px;border:0.5px solid #ddd;">변화량</th>'+
+      '</tr></thead><tbody>'+rows+'</tbody></table>';
+  }
+
+  /* 밸런싱 수행 정보 */
+  var balInfo='';
+  if(balDate||balWeight){
+    var planes=Object.keys(balPlanes).filter(function(k){return balPlanes[k];}).map(function(k){return bearings[parseInt(k)]?bearings[parseInt(k)].name:'';}).join(', ');
+    balInfo='밸런싱 날짜: '+(balDate||'—')+
+      (planes?' &nbsp;|&nbsp; 적용 평면: '+planes:'')+
+      (balWeight?' &nbsp;|&nbsp; Weight: '+balWeight+'g @ '+(balPhase||'0')+'°':'');
+  }
+
+  /* 보고서 HTML — 세로(A4) 레이아웃 */
+  var rpt=
+    '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;font-size:11px;color:#1a1a18;max-width:680px;margin:0 auto;">'+
+
+    /* 헤더 */
+    '<div style="border-bottom:2.5px solid #1E2D5A;padding-bottom:7px;margin-bottom:10px;">'+
+      '<p style="font-size:18px;font-weight:700;color:#1E2D5A;margin-bottom:2px;">'+reportTitle+'</p>'+
+      '<p style="font-size:9.5px;color:#666;">작성일: '+dateStr+
+        ' &nbsp;|&nbsp; 단위: '+unit+
+        ' &nbsp;|&nbsp; 위상기준: 12시=0°, CCW'+
+        (alarmVal?' &nbsp;|&nbsp; <span style="color:#e6a817;font-weight:600;">Alarm: '+alarmVal+' '+unit+'</span>':'')+
+        (tripVal?' &nbsp;|&nbsp; <span style="color:#d42f2f;font-weight:600;">Trip: '+tripVal+' '+unit+'</span>':'')+
+      '</p>'+
+      (balInfo?'<p style="font-size:9.5px;color:#444;margin-top:2px;">'+balInfo+'</p>':'')+
+    '</div>'+
+
+    /* Polar Sheet (가운데 정렬) */
+    '<div style="text-align:center;margin-bottom:10px;">'+
+      '<p style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px;text-align:left;">Polar Sheet</p>'+
+      '<img src="'+canvasImg+'" style="width:360px;height:360px;border:0.5px solid #ddd;">'+
+    '</div>'+
+
+    /* 절충안 */
+    solBox()+
+
+    /* 측정 데이터 */
+    measTable(measBefore,'before')+
+    measTable(measAfter,'after')+
+
+    /* 예상 진동 */
+    predTable()+
+
+    /* 푸터 */
+    '<div style="border-top:0.5px solid #ddd;margin-top:10px;padding-top:5px;font-size:8.5px;color:#bbb;text-align:right;">'+
+      reportTitle+' &nbsp;·&nbsp; Weight Balancing 자동 계산 앱'+
+    '</div>'+
+  '</div>';
+
+  /* 기존 보고서 div 제거 후 삽입 */
+  var old=document.getElementById('_report_div');
+  if(old)old.parentNode.removeChild(old);
+
+  var div=document.createElement('div');
+  div.id='_report_div';
+  div.className='print-only';
+  div.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:99999;overflow-y:auto;padding:24px 32px;box-sizing:border-box;';
+  div.innerHTML=rpt;
+  document.body.appendChild(div);
+
+  window.print();
+
+  setTimeout(function(){
+    var d=document.getElementById('_report_div');
+    if(d)d.parentNode.removeChild(d);
+  },1500);
+}
+
+/* ── 렌더링 ── */
+function renderAll(){renderBrg();renderMeasBrgFilter();renderBalPlaneSel();renderMeas();renderIV();renderPolarBrgFilter();draw();}
+
+function renderBrg(){
+  var g=document.getElementById('brg-grid');while(g.firstChild)g.removeChild(g.firstChild);
+  bearings.forEach(function(b){
+    var card=document.createElement('div');card.className='bcard'+(b.active?' on':'');
+    var top=document.createElement('div');top.className='btop';
+    var dot=document.createElement('div');dot.className='bdot';dot.style.background=BC[b.id];
+    var num=document.createElement('span');num.className='bnum';num.textContent='#'+(b.id+1);
+    top.appendChild(dot);top.appendChild(num);
+    var inp=document.createElement('input');inp.className='bname';inp.type='text';inp.value=b.name;inp.placeholder='명칭';
+    inp.addEventListener('click',function(e){e.stopPropagation();});
+    inp.addEventListener('change',function(){b.name=this.value;renderAll();saveAuto();});
+    card.addEventListener('click',function(e){if(e.target.tagName==='INPUT')return;b.active=!b.active;renderAll();saveAuto();});
+    card.appendChild(top);card.appendChild(inp);g.appendChild(card);
+  });
+}
+
+function renderMeasBrgFilter(){
+  var ab=bearings.filter(function(b){return b.active;});
+  var f=document.getElementById('meas-brg-filter');while(f.firstChild)f.removeChild(f.firstChild);
+  var lbl=document.createElement('span');lbl.style.cssText='font-size:11px;color:var(--t3);';lbl.textContent='보기:';f.appendChild(lbl);
+  var allBtn=document.createElement('button');allBtn.className='brg-ftab';
+  if(measBrgSel===-1)allBtn.style.cssText='background:var(--bg2);color:var(--t1);';
+  allBtn.textContent='전체';allBtn.addEventListener('click',function(){measBrgSel=-1;renderMeasBrgFilter();renderMeas();saveAuto();});f.appendChild(allBtn);
+  ab.forEach(function(b){
+    var btn=document.createElement('button');btn.className='brg-ftab';
+    var dot=document.createElement('span');dot.style.cssText='width:7px;height:7px;border-radius:50%;display:inline-block;background:'+BC[b.id]+';';
+    btn.appendChild(dot);btn.appendChild(document.createTextNode(b.name));
+    if(measBrgSel===b.id)btn.style.cssText='background:'+BC[b.id]+';color:#fff;border-color:'+BC[b.id]+';';
+    btn.addEventListener('click',function(){measBrgSel=b.id;renderMeasBrgFilter();renderMeas();saveAuto();});f.appendChild(btn);
+  });
+}
+
+function renderBalPlaneSel(){
+  var sel=document.getElementById('bal-plane-sel');while(sel.firstChild)sel.removeChild(sel.firstChild);
+  bearings.filter(function(b){return b.active;}).forEach(function(b){
+    var btn=document.createElement('button');btn.className='bsel'+(balPlanes[b.id]?' on':'');
+    btn.textContent=b.name;
+    btn.addEventListener('click',function(){balPlanes[b.id]=!balPlanes[b.id];renderBalPlaneSel();saveAuto();});sel.appendChild(btn);
+  });
+}
+
+function renderMeasPhase(phase){
+  var meas=phase==='before'?measBefore:measAfter;
+  var ab=bearings.filter(function(b){return b.active;});
+  var viewBrgs=measBrgSel===-1?ab:ab.filter(function(b){return b.id===measBrgSel;});
+  var area=document.getElementById('meas-'+phase);while(area.firstChild)area.removeChild(area.firstChild);
+  if(!ab.length){var p=document.createElement('p');p.className='hint';p.textContent='베어링을 선택하세요.';area.appendChild(p);return;}
+  var colW=88;
+  var wrap=document.createElement('div');wrap.className='sx';
+  var tbl=document.createElement('table');tbl.className='t';tbl.style.minWidth=(220+colW*viewBrgs.length*2)+'px';
+  var thead=document.createElement('thead');
+  var hr1=document.createElement('tr');
+  function mth(txt,w,rs,cs){var t=document.createElement('th');t.textContent=txt;if(w)t.style.width=w;if(rs)t.rowSpan=rs;if(cs)t.colSpan=cs;return t;}
+  hr1.appendChild(mth('날짜','110px',2));hr1.appendChild(mth('비고','80px',2));
+  viewBrgs.forEach(function(b){
+    var th=document.createElement('th');th.colSpan=2;th.style.textAlign='center';
+    var sp=document.createElement('span');sp.style.cssText='display:inline-flex;align-items:center;gap:4px;';
+    var d=document.createElement('span');d.style.cssText='display:inline-block;width:7px;height:7px;border-radius:50%;background:'+BC[b.id]+';';
+    sp.appendChild(d);sp.appendChild(document.createTextNode(b.name));th.appendChild(sp);hr1.appendChild(th);
+  });
+  hr1.appendChild(mth('','28px',2));thead.appendChild(hr1);
+  var hr2=document.createElement('tr');
+  viewBrgs.forEach(function(b){
+    ['X','Y'].forEach(function(ax){
+      var th=document.createElement('th');th.style.cssText='text-align:center;width:'+colW+'px;';
+      var badge=document.createElement('span');badge.className='ax-badge '+(ax==='X'?'ax-x':'ax-y');badge.textContent=ax+'축';
+      var sub=document.createElement('span');sub.style.cssText='font-size:9px;color:var(--t3);margin-left:2px;';sub.textContent=ul()+'@°';
+      th.appendChild(badge);th.appendChild(sub);hr2.appendChild(th);
+    });
+  });
+  thead.appendChild(hr2);tbl.appendChild(thead);
+  var tbody=document.createElement('tbody');
+  meas.forEach(function(m,mi){
+    var tr=document.createElement('tr');
+    var tdDate=document.createElement('td');
+    var dateInp=document.createElement('input');dateInp.type='date';dateInp.className='date-inp';dateInp.value=m.date||'';dateInp.tabIndex=tabIdx++;
+    dateInp.addEventListener('change',function(){m.date=this.value;renderIV();draw();saveAuto();});
+    tdDate.appendChild(dateInp);tr.appendChild(tdDate);
+    var tdNote=document.createElement('td');
+    var noteInp=document.createElement('input');noteInp.type='text';noteInp.className='ci';noteInp.value=m.note||'';noteInp.placeholder='비고';noteInp.tabIndex=tabIdx++;
+    noteInp.addEventListener('change',function(){m.note=this.value;draw();saveAuto();});
+    tdNote.appendChild(noteInp);tr.appendChild(tdNote);
+    viewBrgs.forEach(function(b){
+      ['X','Y'].forEach(function(ax){
+        var key=dk(b.id,ax);if(!m.data[key])m.data[key]={amp:'',phase:''};var v=m.data[key];
+        var td=document.createElement('td');var dv=document.createElement('div');dv.style.cssText='display:flex;gap:3px;align-items:center;';
+        var ai=document.createElement('input');ai.type='number';ai.className='ci ni';ai.placeholder=ul();ai.min='0';ai.value=v.amp;ai.tabIndex=tabIdx++;
+        ai.addEventListener('input',function(){v.amp=this.value;});
+        ai.addEventListener('change',function(){renderIV();draw();saveAuto();});
+        ai.addEventListener('blur',function(){if(v.amp!==this.value){v.amp=this.value;renderIV();draw();saveAuto();}});
+        var at=document.createElement('span');at.textContent='@';at.style.cssText='font-size:10px;color:var(--t3);flex-shrink:0;';
+        var pi=document.createElement('input');pi.type='number';pi.className='ci ni';pi.placeholder='°';pi.min='0';pi.max='359';pi.value=v.phase;pi.tabIndex=tabIdx++;
+        pi.addEventListener('input',function(){v.phase=this.value;});
+        pi.addEventListener('change',function(){renderIV();draw();saveAuto();});
+        pi.addEventListener('blur',function(){if(v.phase!==this.value){v.phase=this.value;renderIV();draw();saveAuto();}});
+        dv.appendChild(ai);dv.appendChild(at);dv.appendChild(pi);td.appendChild(dv);tr.appendChild(td);
+      });
+    });
+    var tdd=document.createElement('td');tdd.style.textAlign='center';
+    var db=document.createElement('button');db.className='btn btn-d no-print';db.textContent='✕';db.style.cssText='padding:1px 5px;font-size:11px;';
+    db.addEventListener('click',function(){meas.splice(mi,1);renderMeasPhase(phase);renderIV();draw();saveAuto();});
+    tdd.appendChild(db);tr.appendChild(tdd);tbody.appendChild(tr);
+  });
+  /* 벡터 평균 행 */
+  var avgTr=document.createElement('tr');avgTr.className='avg-row';
+  var a0=document.createElement('td');a0.textContent='벡터 평균';a0.style.fontWeight='600';avgTr.appendChild(a0);
+  var a1=document.createElement('td');a1.style.cssText='font-size:10px;';a1.textContent='N='+meas.length;avgTr.appendChild(a1);
+  viewBrgs.forEach(function(b){
+    ['X','Y'].forEach(function(ax){
+      var avg=getAvgVec(phase,b.id,ax);
+      var td=document.createElement('td');td.style.cssText='text-align:center;font-size:11px;';
+      if(avg){
+        var sp=document.createElement('span');sp.style.cssText='display:flex;flex-direction:column;align-items:center;gap:1px;';
+        var v1=document.createElement('span');v1.style.fontWeight='600';v1.textContent=avg.amp.toFixed(2)+ul();
+        var v2=document.createElement('span');v2.style.cssText='font-size:10px;color:var(--tavg);';v2.textContent='@ '+avg.phase.toFixed(1)+'\u00b0';
+        sp.appendChild(v1);sp.appendChild(v2);td.appendChild(sp);
+      } else {td.textContent='—';td.style.color='var(--t3)';}
+      avgTr.appendChild(td);
+    });
+  });
+  avgTr.appendChild(document.createElement('td'));tbody.appendChild(avgTr);
+  tbl.appendChild(tbody);wrap.appendChild(tbl);
+  var ht=document.createElement('p');ht.className='hint';ht.textContent='날짜 클릭 → 달력 선택 &nbsp;|&nbsp; 각 셀: '+ul()+' @ °';
+  area.appendChild(wrap);area.appendChild(ht);
+}
+function renderMeas(){
+  tabIdx=100; /* Tab 순서 초기화: before → after 연속 */
+  renderMeasPhase('before');
+  renderMeasPhase('after');
+}
+function addRow(phase){
+  var meas=phase==='before'?measBefore:measAfter;
+  meas.push({id:nextId++,date:'',note:'',data:{}});
+  renderMeasPhase(phase);renderIV();draw();saveAuto();
+}
+
+function getAllDates(){var seen={},res=[];measBefore.concat(measAfter).forEach(function(m){if(m.date&&!seen[m.date]){seen[m.date]=true;res.push(m.date);}});return res;}
+function getBeforeDates(){var res=[];measBefore.forEach(function(m){if(m.date)res.push(m.date);});return res;}
+function getAfterDates(){var res=[];measAfter.forEach(function(m){if(m.date)res.push(m.date);});return res;}
+
+/* ── IV 렌더링 ── */
+function renderIV(){
+  var ab=bearings.filter(function(b){return b.active;});
+  var bfDates=getBeforeDates(),afDates=getAfterDates();
+  var allDates=getAllDates();
+  var container=document.getElementById('iv-planes');while(container.firstChild)container.removeChild(container.firstChild);
+
+  /* ── 헬퍼 함수: forEach 밖에 선언해야 strict mode 오류 없음 ── */
+  function makeCondSel(dates,val,useAll,onDate,onAll,lbl){
+    var wr=document.createElement('div');wr.style.cssText='display:flex;align-items:center;gap:5px;';
+    var lb=document.createElement('span');lb.textContent=lbl;lb.style.fontWeight='500';wr.appendChild(lb);
+    var s=document.createElement('select');s.className='sel-sm';
+    var oAll=document.createElement('option');oAll.value='__all__';oAll.textContent='모든 값 (벡터 평균)';if(useAll)oAll.selected=true;s.appendChild(oAll);
+    var oNone=document.createElement('option');oNone.value='';oNone.textContent='-- 날짜 선택 --';if(!useAll&&!val)oNone.selected=true;s.appendChild(oNone);
+    dates.forEach(function(d){var o=document.createElement('option');o.value=d;o.textContent=fmtDate(d);if(!useAll&&d===val)o.selected=true;s.appendChild(o);});
+    s.addEventListener('change',function(){if(this.value==='__all__'){onAll(true);onDate('');}else{onAll(false);onDate(this.value);}renderIV();draw();saveAuto();});
+    wr.appendChild(s);return wr;
+  }
+  function mkL(t){var s=document.createElement('span');s.textContent=t;return s;}
+  function mkNI(val,ph,w,cb){
+    var inp=document.createElement('input');inp.type='number';inp.className='inp-nm';
+    inp.style.cssText='width:'+w+'px;text-align:right;';
+    inp.value=val;inp.placeholder=ph;inp.min='0';
+    inp.addEventListener('change',function(){cb(this.value);saveAuto();});return inp;
+  }
+  function mkCWNI(val,ph,w,cb){
+    var inp=document.createElement('input');inp.type='number';inp.className='inp-nm';
+    inp.style.cssText='width:'+w+'px;text-align:right;background:var(--card);';
+    inp.value=val;inp.placeholder=ph;inp.min='0';
+    inp.addEventListener('change',function(){cb(this.value);renderIV();draw();saveAuto();});return inp;
+  }
+  function mkLg(t){var s=document.createElement('span');s.textContent=t;s.style.cssText='color:var(--tok);font-size:11px;';return s;}
+  function mkLng(t){var s=document.createElement('span');s.textContent=t;s.style.color='var(--tw)';return s;}
+
+  ivPlanes.forEach(function(plane,pi){
+    var plColor=PLC[pi%PLC.length];
+    if(!plane.ivs)plane.ivs={};
+    if(!plane.invSelDates)plane.invSelDates={};
+
+    var wrap=document.createElement('div');wrap.className='iv-plane-wrap';wrap.style.borderColor=plColor+'66';
+    var hdr=document.createElement('div');hdr.className='iv-plane-header';hdr.style.background=plColor+'12';
+    var htl=document.createElement('div');htl.style.cssText='display:flex;align-items:center;gap:8px;';
+    var clDot=document.createElement('span');clDot.style.cssText='width:10px;height:10px;border-radius:50%;background:'+plColor+';display:inline-block;';
+    var nmInp=document.createElement('input');nmInp.type='text';nmInp.value=plane.name;
+    nmInp.style.cssText='font-size:12px;font-weight:500;border:none;background:transparent;color:var(--t1);outline:none;font-family:inherit;width:140px;';
+    nmInp.addEventListener('change',function(){plane.name=this.value;saveAuto();});
+    htl.appendChild(clDot);htl.appendChild(nmInp);
+    var delBtn=document.createElement('button');delBtn.className='btn btn-d';delBtn.textContent='삭제';
+    delBtn.addEventListener('click',function(){ivPlanes.splice(pi,1);renderIV();draw();saveAuto();});
+    hdr.appendChild(htl);hdr.appendChild(delBtn);wrap.appendChild(hdr);
+
+    var body=document.createElement('div');body.className='iv-body';
+
+    /* 모드 탭 */
+    var modeTabs=document.createElement('div');modeTabs.style.cssText='display:flex;gap:3px;margin-bottom:10px;';
+    var tabA=document.createElement('button');tabA.className='mtab'+(plane.mode==='auto'?' on':'');tabA.textContent='자동 계산';
+    var tabM=document.createElement('button');tabM.className='mtab'+(plane.mode==='manual'?' on':'');tabM.textContent='수동 입력';
+    tabA.addEventListener('click',function(){plane.mode='auto';renderIV();saveAuto();});
+    tabM.addEventListener('click',function(){plane.mode='manual';renderIV();saveAuto();});
+    modeTabs.appendChild(tabA);modeTabs.appendChild(tabM);body.appendChild(modeTabs);
+
+    /* Trial Weight */
+    var twRow=document.createElement('div');twRow.className='tw-row';
+    twRow.appendChild(mkL('Trial Weight:'));
+    twRow.appendChild(mkNI(plane.twWeight,'g',60,function(v){plane.twWeight=v;}));twRow.appendChild(mkL('g @'));
+    twRow.appendChild(mkNI(plane.twAngle,'0',54,function(v){plane.twAngle=v;}));twRow.appendChild(mkL('°'));
+    body.appendChild(twRow);
+
+    /* 자동계산 */
+    if(plane.mode==='auto'){
+      var autoBox=document.createElement('div');autoBox.className='auto-box';
+      var arow=document.createElement('div');arow.className='auto-row';
+      arow.appendChild(mkL('Before (A):'));
+      arow.appendChild(makeCondSel(bfDates,plane.condBase,plane.useAllBase,function(v){plane.condBase=v;},function(v){plane.useAllBase=v;},'Before (A):'));
+      arow.appendChild(makeCondSel(afDates,plane.condTrial,plane.useAllTrial,function(v){plane.condTrial=v;},function(v){plane.useAllTrial=v;},'After (B):'));
+      var calcBtn=document.createElement('button');calcBtn.className='btn btn-p';calcBtn.style.cssText='padding:3px 10px;font-size:11px;';
+      calcBtn.textContent='\u25b6 \u03b1=(B\u2212A)/W \u2192 0\u00b0 환산';
+      calcBtn.addEventListener('click',function(){
+        ab.forEach(function(b){['X','Y'].forEach(function(ax){
+          var res=computeIV(plane,b.id,ax);var key=ivk(b.id,ax);
+          if(res) plane.ivs[key]={amp:res.norm.amp.toFixed(4),phase0:res.norm.phase.toFixed(2),ampRaw:res.raw.amp.toFixed(4),phaseRaw:res.raw.phase.toFixed(2),src:'auto'};
+        });});
+        renderIV();draw();saveAuto();
+      });
+      arow.appendChild(calcBtn);autoBox.appendChild(arow);
+      var W=parseFloat(plane.twWeight);
+      var fn=document.createElement('p');fn.style.cssText='font-size:10px;color:var(--ti);margin-top:5px;';
+      if(!isNaN(W)&&W>0)fn.innerHTML='<strong>\u03b1=(B\u2212A)/'+W+'g</strong> \u2192 <strong>\u03b1\u2080=\u03b1\u00d7e<sup>\u2212j\u03b8_w</sup></strong> &nbsp;단위: '+ul()+'/g';
+      else fn.textContent='Trial Weight(g) 입력 시 단위 정규화 + 0° 환산 자동 적용';
+      autoBox.appendChild(fn);body.appendChild(autoBox);
+    }
+
+    /* 공용 Weight + IV 행렬 */
+    if(!plane.sharedG)plane.sharedG='';
+    var matTitle=document.createElement('p');matTitle.style.cssText='font-size:11px;font-weight:500;color:var(--t2);margin-bottom:6px;';
+    var W2=parseFloat(plane.twWeight),wv=!isNaN(W2)&&W2>0;
+    matTitle.innerHTML='베어링별 영향 벡터 \u03b1\u2080 (0\u00b0 기준) &nbsp;<span style="font-size:10px;color:var(--t3);">'+(wv?'['+ul()+'/g]':'['+ul()+']')+'</span>';
+    body.appendChild(matTitle);
+
+    var sgRow=document.createElement('div');sgRow.className='shared-g-row';
+    var sgLbl=document.createElement('span');sgLbl.textContent='공용 Weight:';sgLbl.style.fontWeight='500';
+    var sgInp=document.createElement('input');sgInp.type='number';sgInp.className='inp-nm';sgInp.style.cssText='width:70px;text-align:right;background:var(--card);';
+    sgInp.value=plane.sharedG;sgInp.placeholder='g';sgInp.min='0';
+    sgInp.addEventListener('input',function(){
+      plane.sharedG=this.value;
+      matDiv.querySelectorAll('.conv-cell').forEach(function(cell){
+        var a=parseFloat(cell.getAttribute('data-amp'));var g=parseFloat(plane.sharedG);
+        if(!isNaN(a)&&a>0&&!isNaN(g)&&g>0){cell.innerHTML='<span style="font-weight:600;color:var(--tw);">'+(a*g).toFixed(2)+'</span> <span style="font-size:10px;color:var(--t3);">'+ul()+'</span>';}
+        else{cell.textContent='—';}
+      });
+      saveAuto();
+    });
+    sgRow.appendChild(sgLbl);sgRow.appendChild(sgInp);sgRow.appendChild(mkL('g'));
+    var sgHint=document.createElement('span');sgHint.style.cssText='font-size:10px;color:var(--tw);opacity:.8;';sgHint.textContent='입력 시 모든 베어링 α₀×g 즉시 환산';
+    sgRow.appendChild(sgHint);body.appendChild(sgRow);
+
+    var matDiv=document.createElement('div');matDiv.className='iv-matrix';
+    var ivTbl=document.createElement('table');ivTbl.className='iv-tbl';
+    var ivHead=document.createElement('thead');var ivHr=document.createElement('tr');
+    ['베어링','축','α₀ 크기','α₀×g 환산','위상(0°기준)','[원래위상]','상태'].forEach(function(h,hi){
+      var th=document.createElement('th');th.textContent=h;th.style.textAlign=hi<2?'left':'center';ivHr.appendChild(th);
+    });
+    ivHead.appendChild(ivHr);ivTbl.appendChild(ivHead);
+    var ivBody=document.createElement('tbody');
+    ab.forEach(function(b){
+      ['X','Y'].forEach(function(ax,axi){
+        var key=ivk(b.id,ax);
+        if(!plane.ivs[key])plane.ivs[key]={amp:'',phase0:'',ampRaw:'',phaseRaw:'',src:'manual'};
+        var iv=plane.ivs[key];var isAuto=iv.src==='auto';
+        var tr=document.createElement('tr');if(axi===0)tr.style.borderTop='0.5px solid var(--b)';
+        if(axi===0){
+          var tdN=document.createElement('td');tdN.rowSpan=2;tdN.style.cssText='vertical-align:middle;';
+          var nw=document.createElement('div');nw.style.cssText='display:flex;align-items:center;gap:5px;';
+          var dd=document.createElement('span');dd.className='ldot';dd.style.background=BC[b.id];
+          nw.appendChild(dd);nw.appendChild(document.createTextNode(b.name));tdN.appendChild(nw);tr.appendChild(tdN);
+        }
+        var tdAx=document.createElement('td');var axBdg=document.createElement('span');axBdg.className='ax-badge '+(ax==='X'?'ax-x':'ax-y');axBdg.textContent=ax;tdAx.appendChild(axBdg);tr.appendChild(tdAx);
+        var tdAmp=document.createElement('td');tdAmp.style.textAlign='center';
+        var aI=document.createElement('input');aI.type='number';aI.className='iv-inp '+(isAuto?'auto-val':'manual-val');aI.value=iv.amp;aI.placeholder='크기';aI.min='0';
+        aI.addEventListener('change',function(){iv.amp=this.value;iv.src='manual';this.className='iv-inp manual-val';
+          var cc=this.parentNode.nextSibling;if(cc){var g2=parseFloat(plane.sharedG);var a2=parseFloat(iv.amp);cc.setAttribute('data-amp',iv.amp);if(!isNaN(a2)&&a2>0&&!isNaN(g2)&&g2>0){cc.innerHTML='<span style="font-weight:600;color:var(--tw);">'+(a2*g2).toFixed(2)+'</span> <span style="font-size:10px;color:var(--t3);">'+ul()+'</span>';}else cc.textContent='—';}
+          renderIV();draw();saveAuto();
+        });
+        tdAmp.appendChild(aI);tr.appendChild(tdAmp);
+        var tdConv=document.createElement('td');tdConv.className='conv-cell';tdConv.style.textAlign='center';tdConv.setAttribute('data-amp',iv.amp);
+        var a0v=parseFloat(iv.amp),sg=parseFloat(plane.sharedG);
+        if(!isNaN(a0v)&&a0v>0&&!isNaN(sg)&&sg>0){tdConv.innerHTML='<span style="font-weight:600;color:var(--tw);">'+(a0v*sg).toFixed(2)+'</span> <span style="font-size:10px;color:var(--t3);">'+ul()+'</span>';}
+        else{tdConv.textContent='—';tdConv.style.color='var(--t3)';}
+        tr.appendChild(tdConv);
+        var tdPh=document.createElement('td');tdPh.style.textAlign='center';
+        var phI=document.createElement('input');phI.type='number';phI.className='iv-inp '+(isAuto?'auto-val':'manual-val');phI.value=iv.phase0;phI.placeholder='0°기준';phI.min='0';phI.max='359';
+        phI.addEventListener('change',function(){iv.phase0=this.value;iv.src='manual';this.className='iv-inp manual-val';renderIV();draw();saveAuto();});
+        tdPh.appendChild(phI);tr.appendChild(tdPh);
+        var tdRaw=document.createElement('td');tdRaw.style.cssText='text-align:center;color:var(--t3);font-size:10px;';tdRaw.textContent=isAuto?(iv.phaseRaw?iv.phaseRaw+'°':'—'):'—';tr.appendChild(tdRaw);
+        var tdSt=document.createElement('td');tdSt.style.textAlign='center';
+        var pill=document.createElement('span');pill.className='pill '+(isAuto?'pill-g':'pill-v');pill.textContent=isAuto?'자동':'수동';tdSt.appendChild(pill);tr.appendChild(tdSt);
+        ivBody.appendChild(tr);
+      });
+    });
+    ivTbl.appendChild(ivBody);matDiv.appendChild(ivTbl);body.appendChild(matDiv);
+
+    /* 교정 Weight */
+    var cwSec=document.createElement('div');cwSec.className='cw-section';
+    var cwHdr=document.createElement('div');cwHdr.className='cw-header';
+    cwHdr.appendChild(Object.assign(document.createElement('span'),{textContent:'교정 Weight \u2192 예상 진동 계산'}));
+    var cwInpDiv=document.createElement('div');cwInpDiv.className='cw-inputs';
+    cwInpDiv.appendChild(mkLg('교정:'));cwInpDiv.appendChild(mkCWNI(plane.cwWeight,'g',58,function(v){plane.cwWeight=v;}));
+    cwInpDiv.appendChild(mkLg('g @'));cwInpDiv.appendChild(mkCWNI(plane.cwAngle,'0°',52,function(v){plane.cwAngle=v;}));
+    cwInpDiv.appendChild(mkLg('°  기준:'));
+    var cwSel=document.createElement('select');cwSel.className='sel-sm';cwSel.style.background='var(--card)';
+    [{v:'__bf_avg__',t:'Before 평균'},{v:'__af_avg__',t:'After 평균'},{v:'',t:'-- 날짜 선택 --'}].forEach(function(m){
+      var o=document.createElement('option');o.value=m.v;o.textContent=m.t;if(plane.cwBaseMode===m.v||(m.v===''&&!plane.cwBaseMode&&!plane.cwBaseCond))o.selected=true;cwSel.appendChild(o);
+    });
+    bfDates.forEach(function(d){var o=document.createElement('option');o.value=d;o.textContent=fmtDate(d)+' (Before)';if(!plane.cwBaseMode&&d===plane.cwBaseCond)o.selected=true;cwSel.appendChild(o);});
+    afDates.forEach(function(d){var o=document.createElement('option');o.value=d;o.textContent=fmtDate(d)+' (After)';if(!plane.cwBaseMode&&d===plane.cwBaseCond)o.selected=true;cwSel.appendChild(o);});
+    cwSel.addEventListener('change',function(){var v=this.value;if(v==='__bf_avg__'||v==='__af_avg__'){plane.cwBaseMode=v;plane.cwBaseCond='';plane.useAllBase2=(v==='__bf_avg__');}else{plane.cwBaseMode='';plane.cwBaseCond=v;plane.useAllBase2=false;}renderIV();draw();saveAuto();});
+    cwInpDiv.appendChild(cwSel);cwHdr.appendChild(cwInpDiv);cwSec.appendChild(cwHdr);
+
+    var cwBody2=document.createElement('div');cwBody2.className='cw-body';
+    var rWrap=document.createElement('div');rWrap.className='sx';
+    var pTbl=document.createElement('table');pTbl.className='pred-tbl';
+    var pHead=document.createElement('thead');var pHr=document.createElement('tr');
+    ['베어링','축','기준 진동','예상 진동','변화량','판정'].forEach(function(h){var th=document.createElement('th');th.textContent=h;pHr.appendChild(th);});
+    pHead.appendChild(pHr);pTbl.appendChild(pHead);
+    var pBody=document.createElement('tbody');var hasRes=false;
+    ab.forEach(function(b){['X','Y'].forEach(function(ax){
+      var baseVec=getBaseVec(plane,b.id,ax);
+      var pred=getPredicted(plane,b.id,ax,plane.cwWeight,plane.cwAngle);
+      if(!baseVec&&!pred)return;hasRes=true;
+      var tr=document.createElement('tr');
+      var tdN=document.createElement('td');var nw=document.createElement('span');nw.style.cssText='display:inline-flex;align-items:center;gap:4px;';var dd=document.createElement('span');dd.className='ldot';dd.style.background=BC[b.id];nw.appendChild(dd);nw.appendChild(document.createTextNode(b.name));tdN.appendChild(nw);tr.appendChild(tdN);
+      var tdAx=document.createElement('td');var axB=document.createElement('span');axB.className='ax-badge '+(ax==='X'?'ax-x':'ax-y');axB.textContent=ax;tdAx.appendChild(axB);tr.appendChild(tdAx);
+      var bP=baseVec?toPolar(baseVec.re,baseVec.im):null;
+      var tdB=document.createElement('td');tdB.textContent=bP?(bP.amp.toFixed(2)+ul()+' @ '+bP.phase.toFixed(1)+'\u00b0'):'—';tr.appendChild(tdB);
+      var tdPr=document.createElement('td');tdPr.style.fontWeight='500';tdPr.textContent=pred?(pred.amp.toFixed(2)+ul()+' @ '+pred.phase.toFixed(1)+'\u00b0'):'—';if(!pred)tdPr.style.color='var(--t3)';tr.appendChild(tdPr);
+      var tdDl=document.createElement('td');if(pred&&bP){var dl=pred.amp-bP.amp;tdDl.className=dl<0?'delta-ok':'delta-ng';tdDl.textContent=(dl>=0?'+':'')+dl.toFixed(2)+ul();}else tdDl.textContent='—';tr.appendChild(tdDl);
+      var tdRmk=document.createElement('td');tdRmk.style.color='var(--t3)';if(pred&&bP)tdRmk.textContent=pred.amp<bP.amp?'\u25bc 감소':'\u25b2 증가';tr.appendChild(tdRmk);
+      pBody.appendChild(tr);
+    });});
+    if(!hasRes){var et=document.createElement('tr');var ed=document.createElement('td');ed.colSpan=6;ed.style.cssText='padding:10px;color:var(--t3);font-size:11px;';ed.textContent='IV 값과 교정 Weight 입력 후 계산됩니다.';et.appendChild(ed);pBody.appendChild(et);}
+    pTbl.appendChild(pBody);rWrap.appendChild(pTbl);cwBody2.appendChild(rWrap);cwSec.appendChild(cwBody2);
+
+    /* ── ★ 교정 Weight 역산 섹션 (예상 진동보다 먼저 표시) ── */
+    var invSec=document.createElement('div');invSec.className='inv-section';
+    var invHdr=document.createElement('div');invHdr.className='inv-header';
+    var invT=document.createElement('p');invT.className='inv-title';invT.textContent='교정 Weight 역산 (C = \u2212A / \u03b1\u2080)';
+    var invD=document.createElement('p');invD.className='inv-desc';invD.textContent='날짜를 복수 선택하면 해당 측정값들의 벡터 평균을 기준으로 모든 베어링·축의 진동을 0에 가깝게 하는 절충안을 계산합니다.';
+    invHdr.appendChild(invT);invHdr.appendChild(invD);invSec.appendChild(invHdr);
+
+    var invBody2=document.createElement('div');invBody2.className='inv-body';
+    /* 날짜 복수 선택 */
+    var dcTitle=document.createElement('p');dcTitle.style.cssText='font-size:11px;font-weight:500;color:var(--t2);margin-bottom:6px;';dcTitle.textContent='기준 날짜 선택 (복수 선택 가능):';invBody2.appendChild(dcTitle);
+    var dcGrid=document.createElement('div');dcGrid.className='date-check-grid';
+    if(!allDates.length){var noDate=document.createElement('span');noDate.style.cssText='font-size:11px;color:var(--t3);';noDate.textContent='날짜 데이터가 없습니다.';dcGrid.appendChild(noDate);}
+    allDates.forEach(function(d){
+      if(!plane.invSelDates)plane.invSelDates={};
+      var isSel=!!plane.invSelDates[d];
+      var item=document.createElement('div');item.className='date-chk-item'+(isSel?' sel':'');
+      var cb=document.createElement('input');cb.type='checkbox';cb.checked=isSel;
+      var lbl2=document.createElement('span');lbl2.textContent=fmtDate(d);
+      var isAfter=measAfter.some(function(m){return m.date===d;});
+      var phaseBadge=document.createElement('span');phaseBadge.style.cssText='font-size:9px;padding:1px 4px;border-radius:3px;background:'+(isAfter?'var(--bg-ok)':'var(--bg-info)')+';color:'+(isAfter?'var(--tok)':'var(--ti)')+';margin-left:2px;';
+      phaseBadge.textContent=isAfter?'After':'Before';
+      item.appendChild(cb);item.appendChild(lbl2);item.appendChild(phaseBadge);
+      item.addEventListener('click',function(){
+        plane.invSelDates[d]=!plane.invSelDates[d];
+        item.classList.toggle('sel',plane.invSelDates[d]);
+        cb.checked=plane.invSelDates[d];
+        renderInvResult(plane,invResultBox);draw();saveAuto();
+      });
+      dcGrid.appendChild(item);
+    });
+    invBody2.appendChild(dcGrid);
+
+    /* 역산 결과 박스 */
+    var invResultBox=document.createElement('div');
+    renderInvResult(plane,invResultBox);
+    invBody2.appendChild(invResultBox);
+    invSec.appendChild(invBody2);body.appendChild(invSec);
+    body.appendChild(cwSec); /* 교정 Weight 예상 진동은 역산 아래에 */
+
+    /* ng 미리보기 */
+    var ngRow=document.createElement('div');ngRow.className='ngrow';
+    var ngInpDiv=document.createElement('div');ngInpDiv.className='ng-inputs';
+    ngInpDiv.appendChild(mkLng('임의 n g 미리보기:'));
+    var ngInp=document.createElement('input');ngInp.type='number';ngInp.className='inp-nm';ngInp.style.width='64px';ngInp.value=plane.ngWeight;ngInp.placeholder='n g';ngInp.min='0';
+    ngInp.addEventListener('change',function(){plane.ngWeight=this.value;renderIV();draw();saveAuto();});
+    ngInpDiv.appendChild(ngInp);ngInpDiv.appendChild(mkLng('g @ '+(plane.cwAngle||plane.twAngle||'0')+'°:'));
+    ngRow.appendChild(ngInpDiv);
+    if(plane.ngWeight!==''){
+      var ngDiv=document.createElement('div');ngDiv.style.cssText='display:flex;flex-wrap:wrap;gap:8px;';
+      ab.forEach(function(b){['X','Y'].forEach(function(ax){
+        var pred2=getPredicted(plane,b.id,ax,plane.ngWeight,plane.cwAngle||plane.twAngle||'0');if(!pred2)return;
+        var baseVec2=getBaseVec(plane,b.id,ax);var bP2=baseVec2?toPolar(baseVec2.re,baseVec2.im):null;
+        var itm=document.createElement('span');itm.style.cssText='display:inline-flex;align-items:center;gap:4px;background:var(--card);border:0.5px solid var(--b);border-radius:var(--rmd);padding:3px 8px;font-size:11px;';
+        var dd2=document.createElement('span');dd2.className='ldot';dd2.style.background=ax==='X'?BC[b.id]:BC2[b.id];
+        var axBdg2=document.createElement('span');axBdg2.className='ax-badge '+(ax==='X'?'ax-x':'ax-y');axBdg2.textContent=ax;
+        var nm=document.createElement('span');nm.style.fontWeight='500';nm.textContent=b.name+':';
+        var vl=document.createElement('span');vl.textContent=pred2.amp.toFixed(2)+ul()+' @ '+pred2.phase.toFixed(0)+'\u00b0';
+        itm.appendChild(dd2);itm.appendChild(axBdg2);itm.appendChild(nm);itm.appendChild(vl);
+        if(bP2){var dl2=pred2.amp-bP2.amp;var ds=document.createElement('span');ds.style.color=dl2<0?'var(--tok)':'var(--td)';ds.style.fontSize='10px';ds.textContent='('+( dl2>=0?'+':'')+dl2.toFixed(2)+')';itm.appendChild(ds);}
+        ngDiv.appendChild(itm);
+      });});
+      ngRow.appendChild(ngDiv);
+    } else {var ngHint=document.createElement('p');ngHint.style.cssText='font-size:10px;color:var(--t3);';ngHint.textContent='무게 입력 시 즉시 미리보기';ngRow.appendChild(ngHint);}
+    body.appendChild(ngRow);
+    wrap.appendChild(body);container.appendChild(wrap);
+  });
+}
+
+function renderInvResult(plane,box){
+  while(box.firstChild)box.removeChild(box.firstChild);
+  var res=computeInverse(plane);
+  if(!res){
+    var p=document.createElement('p');p.style.cssText='font-size:11px;color:var(--t3);padding:8px 0;';p.textContent='날짜를 선택하고 IV 값이 입력되면 역산 결과가 표시됩니다.';box.appendChild(p);
+    return;
+  }
+  plane.invResult=res;
+
+  /* 절충안 하이라이트 */
+  var solBox=document.createElement('div');
+  solBox.style.cssText='background:var(--bg-sol);border:1.5px solid var(--bsol);border-radius:var(--rmd);padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;';
+  var solIcon=document.createElement('span');solIcon.style.cssText='font-size:20px;';solIcon.textContent='⚖️';
+  var solInfo=document.createElement('div');
+  var solTitle=document.createElement('p');solTitle.style.cssText='font-size:11px;font-weight:500;color:var(--tsol);margin-bottom:3px;';
+  solTitle.textContent='절충안 교정 Weight ('+res.selDates.map(fmtDate).join(', ')+' 기준)';
+  var solVal=document.createElement('p');solVal.style.cssText='font-size:16px;font-weight:700;color:var(--tsol);';
+  solVal.innerHTML='<span style="font-size:22px;">'+res.solution.amp.toFixed(2)+'</span> g &nbsp;@&nbsp; <span style="font-size:22px;">'+res.solution.phase.toFixed(1)+'</span>°';
+  var solHint=document.createElement('p');solHint.style.cssText='font-size:10px;color:var(--tsol);opacity:.75;margin-top:2px;';solHint.textContent='교정 Weight 크기(g) 및 부착 위상(°) — 모든 활성 베어링·축 역산 C벡터의 복소수 평균';
+  solInfo.appendChild(solTitle);solInfo.appendChild(solVal);solInfo.appendChild(solHint);
+  solBox.appendChild(solIcon);solBox.appendChild(solInfo);
+  box.appendChild(solBox);
+
+  /* 베어링별 상세 */
+  /* 베어링별 역산 상세 — 토글 */
+  var detailWrap=document.createElement('div');detailWrap.style.cssText='margin-top:6px;';
+  var detailToggle=document.createElement('button');
+  detailToggle.style.cssText='background:none;border:none;font-size:11px;color:var(--t3);cursor:pointer;padding:2px 0;font-family:inherit;text-decoration:underline;';
+  detailToggle.textContent='▶ 베어링별 상세 보기 (각 베어링을 단독으로 0으로 만들 때의 무게·각도)';
+  var detailBody=document.createElement('div');detailBody.style.display='none';
+  var detailHint=document.createElement('p');
+  detailHint.style.cssText='font-size:10px;color:var(--t3);margin-bottom:6px;padding:4px 8px;background:var(--bg2);border-radius:var(--rmd);';
+  detailHint.textContent='📌 아래 값은 각 베어링·축을 "단독으로" 0으로 만들기 위한 Weight입니다. 실제로는 위 ⚖️ 절충안 값을 사용하세요.';
+  detailBody.appendChild(detailHint);
+  detailToggle.addEventListener('click',function(){
+    var open=detailBody.style.display!=='none';
+    detailBody.style.display=open?'none':'block';
+    detailToggle.textContent=(open?'▶':'▼')+' 베어링별 상세 보기 (각 베어링을 단독으로 0으로 만들 때의 무게·각도)';
+  });
+  detailWrap.appendChild(detailToggle);
+  var sx=document.createElement('div');sx.className='sx';
+  var tbl=document.createElement('table');tbl.className='inv-tbl';
+  var thead=document.createElement('thead');var hr=document.createElement('tr');
+  ['베어링','축','기준 진동 A ('+ul()+')','역산 C 크기 (g)','역산 C 위상 (°)'].forEach(function(h){var th=document.createElement('th');th.textContent=h;hr.appendChild(th);});
+  thead.appendChild(hr);tbl.appendChild(thead);
+  var tbody=document.createElement('tbody');
+  Object.keys(res.perAxis).forEach(function(k){
+    var r=res.perAxis[k];var tr=document.createElement('tr');
+    var tdN=document.createElement('td');tdN.style.textAlign='left';var nw=document.createElement('span');nw.style.cssText='display:inline-flex;align-items:center;gap:4px;';var bid=parseInt(k.split('_')[0]);var dd=document.createElement('span');dd.className='ldot';dd.style.background=BC[bid];nw.appendChild(dd);nw.appendChild(document.createTextNode(r.brgName));tdN.appendChild(nw);tr.appendChild(tdN);
+    var tdAx=document.createElement('td');var axB=document.createElement('span');axB.className='ax-badge '+(r.ax==='X'?'ax-x':'ax-y');axB.textContent=r.ax;tdAx.appendChild(axB);tr.appendChild(tdAx);
+    var tdA=document.createElement('td');tdA.textContent=r.A_amp.toFixed(2)+ul()+' @ '+r.A_phase.toFixed(1)+'\u00b0';tr.appendChild(tdA);
+    var tdCa=document.createElement('td');tdCa.innerHTML='<span class="sol-highlight">'+r.C_amp.toFixed(2)+'g</span>';tr.appendChild(tdCa);
+    var tdCp=document.createElement('td');tdCp.innerHTML='<span class="sol-highlight">'+r.C_phase.toFixed(1)+'\u00b0</span>';tr.appendChild(tdCp);
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);sx.appendChild(tbl);detailBody.appendChild(sx);detailWrap.appendChild(detailBody);box.appendChild(detailWrap);
+}
+
+function addPlane(){
+  ivPlanes.push({id:nextPlaneId++,name:'Trial Plane '+nextPlaneId,mode:'auto',twWeight:'',twAngle:'0',condBase:'',condTrial:'',useAllBase:false,useAllTrial:false,ivs:{},sharedG:'',cwWeight:'',cwAngle:'0',cwBaseCond:'',cwBaseMode:'',useAllBase2:false,ngWeight:'',invSelDates:{},invResult:null});
+  renderIV();saveAuto();
+}
+
+/* ── Polar 필터 ── */
+function renderPolarBrgFilter(){
+  var ab=bearings.filter(function(b){return b.active;});
+  var showBoth=document.getElementById('chk-both-ax').checked;var axes=showBoth?['X','Y']:['X'];
+  var f=document.getElementById('polar-brg-filter');while(f.firstChild)f.removeChild(f.firstChild);
+  var lbl=document.createElement('span');lbl.style.cssText='font-size:11px;color:var(--t3);margin-right:2px;';lbl.textContent='표시:';f.appendChild(lbl);
+  ab.forEach(function(b){axes.forEach(function(ax){
+    var fkey=b.id+'_'+ax;if(polarBrgFilter[fkey]===undefined)polarBrgFilter[fkey]=true;
+    var btn=document.createElement('button');btn.className='pbf';
+    var dot=document.createElement('span');dot.style.cssText='width:7px;height:7px;border-radius:50%;display:inline-block;background:'+(ax==='X'?BC[b.id]:BC2[b.id])+';margin-right:3px;';
+    btn.appendChild(dot);btn.appendChild(document.createTextNode('#'+(b.id+1)+' '+ax));
+    if(polarBrgFilter[fkey])btn.style.cssText='background:'+(ax==='X'?BC[b.id]:BC2[b.id])+';color:#fff;border-radius:10px;border-color:transparent;';
+    btn.addEventListener('click',function(){polarBrgFilter[fkey]=!polarBrgFilter[fkey];renderPolarBrgFilter();draw();saveAuto();});f.appendChild(btn);
+  });});
+}
+
+/* ── Polar Sheet ── */
+function ptOn(cx,cy,r,deg){var rad=deg*Math.PI/180;return{px:cx-r*Math.sin(rad),py:cy-r*Math.cos(rad)};}
+function drawArrow(ctx,x1,y1,x2,y2,color,lw,dash){
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle=color;ctx.lineWidth=lw;if(dash)ctx.setLineDash(dash);else ctx.setLineDash([]);ctx.stroke();ctx.setLineDash([]);
+  var ang=Math.atan2(y2-y1,x2-x1),hl=9;
+  ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-hl*Math.cos(ang-.4),y2-hl*Math.sin(ang-.4));ctx.lineTo(x2-hl*Math.cos(ang+.4),y2-hl*Math.sin(ang+.4));ctx.closePath();ctx.fillStyle=color;ctx.fill();
+}
+
+function draw(){
+  var cv=document.getElementById('polar'),ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height,cx=W/2,cy=H/2;
+  var smax=parseFloat(document.getElementById('scale-max').value)||120;
+  var R=Math.min(cx,cy)-68;
+  var dark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  var gc=dark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.06)';
+  var ac=dark?'rgba(255,255,255,0.15)':'rgba(0,0,0,0.13)';
+  var tc=dark?'rgba(255,255,255,0.45)':'rgba(0,0,0,0.4)';
+  var bg=dark?'#1e1e1c':'#fff';
+  var unit=ul();
+  ctx.clearRect(0,0,W,H);ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  /* ── Alarm / Trip 기준선 ── */
+  var alarmVal=parseFloat(document.getElementById('alarm-val').value);
+  var tripVal=parseFloat(document.getElementById('trip-val').value);
+  if(!isNaN(alarmVal)&&alarmVal>0){
+    var ar=Math.min(alarmVal/smax,2)*R;
+    ctx.beginPath();ctx.arc(cx,cy,ar,0,2*Math.PI);
+    ctx.strokeStyle='#e6a817';ctx.lineWidth=1.8;ctx.setLineDash([8,5]);ctx.stroke();ctx.setLineDash([]);
+    var alTxt='ALARM '+alarmVal+unit;
+    ctx.font='500 10px sans-serif';
+    var alW=ctx.measureText(alTxt).width;
+    var alX=cx+ar*0.707+6,alY=cy-ar*0.707-6;
+    ctx.fillStyle=dark?'rgba(30,30,28,0.82)':'rgba(255,255,255,0.88)';
+    ctx.fillRect(alX-2,alY-6,alW+6,13);
+    ctx.fillStyle='#e6a817';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(alTxt,alX,alY);
+  }
+  if(!isNaN(tripVal)&&tripVal>0){
+    var tr2=Math.min(tripVal/smax,2)*R;
+    ctx.beginPath();ctx.arc(cx,cy,tr2,0,2*Math.PI);
+    ctx.strokeStyle='#d42f2f';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.stroke();ctx.setLineDash([]);
+    var trTxt='TRIP '+tripVal+unit;
+    ctx.font='500 10px sans-serif';
+    var trW=ctx.measureText(trTxt).width;
+    var trX=cx+tr2*0.707+6,trY=cy-tr2*0.707+10;
+    ctx.fillStyle=dark?'rgba(30,30,28,0.82)':'rgba(255,255,255,0.88)';
+    ctx.fillRect(trX-2,trY-6,trW+6,13);
+    ctx.fillStyle='#d42f2f';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(trTxt,trX,trY);
+  }
+
+  /* 동심원 */
+  for(var i=1;i<=5;i++){
+    var r=R*i/5;ctx.beginPath();ctx.arc(cx,cy,r,0,2*Math.PI);
+    ctx.strokeStyle=i===5?ac:gc;ctx.lineWidth=i===5?1:0.5;ctx.stroke();
+    ctx.fillStyle=tc;ctx.font='10px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(Math.round(smax*i/5)+' '+unit,cx+r+4,cy-4);
+  }
+  for(var deg=0;deg<360;deg+=30){
+    var ep=ptOn(cx,cy,R,deg);ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(ep.px,ep.py);
+    ctx.strokeStyle=deg%90===0?ac:gc;ctx.lineWidth=deg%90===0?.8:.4;ctx.stroke();
+    var lp=ptOn(cx,cy,R+34,deg);ctx.fillStyle=tc;ctx.font=deg%90===0?'500 11px sans-serif':'10px sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(deg+'\u00b0',lp.px,lp.py);
+  }
+  ctx.fillStyle=tc;ctx.font='500 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillText('0\u00b0 (12\uc2dc CCW)',cx,cy-R-38);
+
+  /* 캔버스 상단 범례 */
+  (function(){
+    var lx=14,ly=14,lh=17;
+    var items=[
+      {sym:'dot-bf',label:'밸런싱 전 측정값'},
+      {sym:'dot-af',label:'밸런싱 후 측정값'},
+      {sym:'dia-bf',label:'전 평균 (B\u0305)'},
+      {sym:'dia-af',label:'후 평균 (A\u0305)'},
+      {sym:'arrow', label:'전\u2192후 평균 화살표'},
+      {sym:'alarm', label:'Alarm/Trip 기준선'},
+      {sym:'sol',   label:'역산 절충안'},
+    ];
+    var boxW=175,boxH=lh*items.length+10;
+    ctx.fillStyle=dark?'rgba(30,30,28,0.88)':'rgba(255,255,255,0.88)';
+    ctx.strokeStyle=dark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.1)';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.roundRect(lx-4,ly-6,boxW,boxH,6);ctx.fill();ctx.stroke();
+    items.forEach(function(item,i){
+      var y=ly+i*lh,sx2=lx+8;
+      if(item.sym==='dot-bf'){ctx.beginPath();ctx.arc(sx2,y,2,0,2*Math.PI);ctx.fillStyle='#378ADD';ctx.fill();}
+      else if(item.sym==='dot-af'){ctx.beginPath();ctx.arc(sx2,y,1.5,0,2*Math.PI);ctx.fillStyle='#378ADD99';ctx.fill();ctx.beginPath();ctx.arc(sx2,y,5,0,2*Math.PI);ctx.strokeStyle='#378ADD55';ctx.lineWidth=0.8;ctx.setLineDash([2,2]);ctx.stroke();ctx.setLineDash([]);}
+      else if(item.sym==='dia-bf'){ctx.save();ctx.translate(sx2,y);ctx.rotate(Math.PI/4);ctx.strokeStyle=AVG_BF;ctx.lineWidth=1.5;ctx.strokeRect(-4,-4,8,8);ctx.restore();}
+      else if(item.sym==='dia-af'){ctx.save();ctx.translate(sx2,y);ctx.rotate(Math.PI/4);ctx.strokeStyle=AVG_AF;ctx.lineWidth=1.5;ctx.strokeRect(-4,-4,8,8);ctx.restore();}
+      else if(item.sym==='arrow'){ctx.strokeStyle='#378ADDcc';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(sx2-5,y);ctx.lineTo(sx2+5,y);ctx.stroke();ctx.beginPath();ctx.moveTo(sx2+5,y);ctx.lineTo(sx2+2,y-2.5);ctx.lineTo(sx2+2,y+2.5);ctx.closePath();ctx.fillStyle='#378ADDcc';ctx.fill();}
+      else if(item.sym==='alarm'){ctx.strokeStyle='#e6a817';ctx.lineWidth=1.2;ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(sx2-5,y);ctx.lineTo(sx2+5,y);ctx.stroke();ctx.setLineDash([]);ctx.strokeStyle='#d42f2f';ctx.lineWidth=1.2;ctx.setLineDash([3,2]);ctx.beginPath();ctx.moveTo(sx2-5,y+3);ctx.lineTo(sx2+5,y+3);ctx.stroke();ctx.setLineDash([]);}
+      else if(item.sym==='sol'){ctx.beginPath();ctx.arc(sx2,y,4,0,2*Math.PI);ctx.strokeStyle=SOL_COLOR;ctx.lineWidth=2;ctx.stroke();ctx.beginPath();ctx.moveTo(sx2-2.5,y);ctx.lineTo(sx2+2.5,y);ctx.moveTo(sx2,y-2.5);ctx.lineTo(sx2,y+2.5);ctx.strokeStyle=SOL_COLOR;ctx.lineWidth=1.5;ctx.stroke();}
+      ctx.fillStyle=dark?'rgba(255,255,255,0.75)':'rgba(0,0,0,0.6)';ctx.font='10px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+      ctx.fillText(item.label,sx2+12,i===6?y+1.5:y);
+    });
+  })();
+
+  var showLbl=document.getElementById('chk-lbl').checked;
+  var showTrail=document.getElementById('chk-trail').checked;
+  var showAvgArrow=document.getElementById('chk-avg-arrow').checked;
+  var showIV=document.getElementById('chk-iv').checked;
+  var showPredVec=document.getElementById('chk-pred-vec').checked;
+  var showSolPolar=document.getElementById('chk-sol-polar').checked;
+  var showBoth=document.getElementById('chk-both-ax').checked;
+  var axes=showBoth?['X','Y']:['X'];
+  var ab=bearings.filter(function(b){return b.active;});
+
+  ab.forEach(function(b){axes.forEach(function(ax){
+    var fkey=b.id+'_'+ax;if(polarBrgFilter[fkey]===false)return;
+    var color=ax==='X'?BC[b.id]:BC2[b.id];
+    var bfPts=[],afPts=[];
+    function collectPts(meas,arr){meas.forEach(function(m){
+      var v=m.data[dk(b.id,ax)];if(!v||v.amp===''||v.phase==='')return;
+      var cp=corrPhase(v.phase,ax);var amp=parseFloat(v.amp);if(isNaN(amp))return;
+      var ratio=Math.min(amp/smax,1.05);var pt=ptOn(cx,cy,ratio*R,cp);
+      arr.push({px:pt.px,py:pt.py,amp:amp,phase:cp,date:m.date});
+    });}
+    collectPts(measBefore,bfPts);collectPts(measAfter,afPts);
+
+    if(showTrail){
+      function drawTrail(pts){if(pts.length<2)return;ctx.beginPath();ctx.moveTo(pts[0].px,pts[0].py);pts.slice(1).forEach(function(p){ctx.lineTo(p.px,p.py);});ctx.strokeStyle=color+'44';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.stroke();ctx.setLineDash([]);}
+      drawTrail(bfPts);drawTrail(afPts);
+    }
+
+    bfPts.concat(afPts).forEach(function(p){
+      var isBefore=bfPts.indexOf(p)>=0;
+      ctx.beginPath();ctx.arc(p.px,p.py,isBefore?1:0.8,0,2*Math.PI);
+      ctx.fillStyle=isBefore?color:color+'cc';ctx.fill();
+      if(!isBefore){ctx.beginPath();ctx.arc(p.px,p.py,3.5,0,2*Math.PI);ctx.strokeStyle=color+'55';ctx.lineWidth=0.6;ctx.setLineDash([2,2]);ctx.stroke();ctx.setLineDash([]);}
+      if(showLbl&&p.date){
+        /* 방사형 배치: CCW 기준 px=cx-r×sin, offset도 -sinV 방향 */
+        var sinV=Math.sin(p.phase*Math.PI/180),cosV=Math.cos(p.phase*Math.PI/180);
+        var dist=14;
+        var ox=-sinV*dist, oy=-cosV*dist;
+        var lx=p.px+ox, ly=p.py+oy;
+        var txt=fmtDate(p.date);
+        ctx.font='7px sans-serif';
+        var tw=ctx.measureText(txt).width;
+        var align=sinV<-0.2?'left':sinV>0.2?'right':'center';
+        var baseline=cosV>0.3?'bottom':cosV<-0.3?'top':'middle';
+        var bx=align==='left'?lx-1:align==='right'?lx-tw-1:lx-tw/2-1;
+        var by=baseline==='bottom'?ly-8:baseline==='top'?ly:ly-4;
+        /* 배경 박스 */
+        ctx.fillStyle=dark?'rgba(30,30,28,0.72)':'rgba(255,255,255,0.78)';
+        ctx.fillRect(bx-1,by-1,tw+4,10);
+        /* 텍스트 */
+        ctx.fillStyle=color;
+        ctx.textAlign=align;ctx.textBaseline=baseline;
+        ctx.fillText(txt,lx,ly);
+      }
+    });
+
+    function drawAvgMkr(avg,isBefore,label){
+      if(!avg)return null;
+      var ratio=Math.min(avg.amp/smax,1.05);var pt=ptOn(cx,cy,ratio*R,avg.phase);var mc=isBefore?AVG_BF:AVG_AF;
+      ctx.save();ctx.translate(pt.px,pt.py);ctx.rotate(Math.PI/4);ctx.beginPath();ctx.rect(-7,-7,14,14);ctx.fillStyle=mc+'33';ctx.fill();ctx.strokeStyle=mc;ctx.lineWidth=2.5;ctx.stroke();ctx.restore();
+      ctx.fillStyle=mc;ctx.font='500 8px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,pt.px,pt.py);
+      if(showLbl){
+        /* CCW 기준: px=cx-r×sin → 레이블 -sinV 방향 */
+        var sinV2=Math.sin(avg.phase*Math.PI/180);
+        var lbl2=(isBefore?'B\u0305':'A\u0305')+' #'+(b.id+1)+' '+ax;
+        var lx2=pt.px+(-sinV2>0?18:-18);
+        var ly2=pt.py+(avg.phase<180?-14:14);
+        ctx.font='500 9px sans-serif';
+        var tw2=ctx.measureText(lbl2).width;
+        ctx.fillStyle=dark?'rgba(30,30,28,0.75)':'rgba(255,255,255,0.82)';
+        var bx2=-sinV2>0?lx2-1:lx2-tw2-1;
+        ctx.fillRect(bx2-1,ly2-5,tw2+4,11);
+        ctx.fillStyle=mc;
+        ctx.textAlign=-sinV2>0?'left':'right';ctx.textBaseline='middle';
+        ctx.fillText(lbl2,lx2,ly2);
+      }
+      return pt;
+    }
+    var bfPt2=drawAvgMkr(getAvgVec('before',b.id,ax),true,'B\u0305');
+    var afPt2=drawAvgMkr(getAvgVec('after',b.id,ax),false,'A\u0305');
+    if(showAvgArrow&&bfPt2&&afPt2) drawArrow(ctx,bfPt2.px,bfPt2.py,afPt2.px,afPt2.py,color+'cc',2.5,null);
+
+    if(showIV){
+      ivPlanes.forEach(function(plane,pli){
+        var plColor=PLC[pli%PLC.length];
+        var pred=getPredicted(plane,b.id,ax,plane.cwWeight,plane.cwAngle);if(!pred)return;
+        var baseVec2=getBaseVec(plane,b.id,ax);if(!baseVec2)return;
+        var bP3=toPolar(baseVec2.re,baseVec2.im);
+        var bPt3=ptOn(cx,cy,Math.min(bP3.amp/smax,1.05)*R,bP3.phase);
+        var pPt3=ptOn(cx,cy,Math.min(pred.amp/smax,1.05)*R,pred.phase);
+        if(showPredVec)drawArrow(ctx,bPt3.px,bPt3.py,pPt3.px,pPt3.py,plColor+'cc',2,[4,3]);
+        ctx.beginPath();ctx.arc(pPt3.px,pPt3.py,8,0,2*Math.PI);ctx.fillStyle=plColor+'22';ctx.fill();ctx.strokeStyle=plColor;ctx.lineWidth=2;ctx.stroke();
+        ctx.beginPath();ctx.moveTo(pPt3.px-5,pPt3.py);ctx.lineTo(pPt3.px+5,pPt3.py);ctx.moveTo(pPt3.px,pPt3.py-5);ctx.lineTo(pPt3.px,pPt3.py+5);ctx.strokeStyle=plColor;ctx.lineWidth=1.5;ctx.stroke();
+        /* 교정Weight 예상 이동: 레이블 숨김 (복잡도 감소) */
+      });
+    }
+
+    /* ── 역산 절충안 표시 ── */
+    if(showSolPolar){
+      ivPlanes.forEach(function(plane){
+        /*
+          올바른 역산 절충안 표시:
+          - α₀: 해당 베어링·축의 IV (0° 기준, per 1g) — 이미 0° 환산됨
+          - C_sol: 절충안 평균 교정 Weight 복소수 (크기=g, 위상=°)
+          - 예상 변화량 = α₀ × C_sol (복소수 곱)
+          - 예상 진동 = A_avg + 예상 변화량
+          C=-A/α₀ 로 역산했으므로 이상적으로는 예상 진동 → 0에 근접
+          (절충안은 평균이므로 완전히 0은 아님)
+        */
+        var res=computeInverse(plane);
+        if(!res)return;
+
+        var iv=plane.ivs?plane.ivs[ivk(b.id,ax)]:null;
+        if(!iv||iv.amp===''||iv.phase0==='')return;
+        var alpha0=toRect(iv.amp,iv.phase0);   /* α₀ 복소수 */
+        if(!alpha0)return;
+
+        /* 절충안 평균 C (모든 베어링 역산값의 복소수 평균) */
+        var Csol=res.solution.vec;
+        if(!Csol)return;
+
+        /* 선택 날짜들의 A 벡터 평균 */
+        var sumA={re:0,im:0},nA=0;
+        res.selDates.forEach(function(d){
+          var v=getVecByDate(d,b.id,ax);
+          if(v){sumA=addVec(sumA,v);nA++;}
+        });
+        if(!nA)return;
+        var Avec={re:sumA.re/nA,im:sumA.im/nA};
+        var APolar=toPolar(Avec.re,Avec.im);
+
+        /* 예상 변화량 = α₀ × C_sol (복소수 곱) */
+        var deltaVec={
+          re: alpha0.re*Csol.re - alpha0.im*Csol.im,
+          im: alpha0.re*Csol.im + alpha0.im*Csol.re
+        };
+
+        /* 예상 잔류 진동 = A + δ */
+        var predRect=addVec(Avec,deltaVec);
+        var predSol=toPolar(predRect.re,predRect.im);
+        var predRatio=Math.min(predSol.amp/smax,1.05);
+        var predPt=ptOn(cx,cy,predRatio*R,predSol.phase);
+
+        /* A 평균점 → 예상 잔류 진동 화살표 */
+        if(APolar.amp>0){
+          var APt=ptOn(cx,cy,Math.min(APolar.amp/smax,1.05)*R,APolar.phase);
+          drawArrow(ctx,APt.px,APt.py,predPt.px,predPt.py,SOL_COLOR+'ee',2.5,[5,3]);
+        }
+
+        /* 예상 위치 마커 (⊕) */
+        ctx.beginPath();ctx.arc(predPt.px,predPt.py,5,0,2*Math.PI);
+        ctx.fillStyle=SOL_COLOR+'28';ctx.fill();
+        ctx.strokeStyle=SOL_COLOR;ctx.lineWidth=2;ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(predPt.px-4,predPt.py);ctx.lineTo(predPt.px+4,predPt.py);
+        ctx.moveTo(predPt.px,predPt.py-4);ctx.lineTo(predPt.px,predPt.py+4);
+        ctx.strokeStyle=SOL_COLOR;ctx.lineWidth=1.5;ctx.stroke();
+
+        /* 레이블: 베어링명+날짜만 (CCW: -sinV 방향) */
+        if(showLbl&&APolar.amp>0){
+          var sinV=Math.sin(predSol.phase*Math.PI/180);
+          ctx.fillStyle=SOL_COLOR;ctx.font='500 9px sans-serif';
+          ctx.textAlign=-sinV>0?'left':'right';ctx.textBaseline='middle';
+          ctx.fillText('\u26B6#'+(b.id+1)+' '+ax,predPt.px+(-sinV>0?8:-8),predPt.py);
+        }
+      });
+    }
+  });});
+
+  /* 범례 */
+  var leg=document.getElementById('legend');while(leg.firstChild)leg.removeChild(leg.firstChild);
+  var legTitle=document.createElement('span');legTitle.style.cssText='font-size:11px;color:var(--t3);margin-right:4px;';legTitle.textContent='표시 베어링:';leg.appendChild(legTitle);
+  ab.forEach(function(b){axes.forEach(function(ax){
+    var fkey=b.id+'_'+ax;if(polarBrgFilter[fkey]===false)return;
+    var li=document.createElement('span');li.className='li';var d=document.createElement('span');d.className='ldot';d.style.background=ax==='X'?BC[b.id]:BC2[b.id];
+    var axBdg=document.createElement('span');axBdg.className='ax-badge '+(ax==='X'?'ax-x':'ax-y');axBdg.textContent=ax;axBdg.style.marginLeft='2px';
+    li.appendChild(d);li.appendChild(document.createTextNode('#'+(b.id+1)+' '));li.appendChild(axBdg);leg.appendChild(li);
+  });});
+}
+
+(function init(){
+  var saved=null;try{saved=JSON.parse(localStorage.getItem(SKEY));}catch(e){}
+  if(saved){applyState(saved);setSave('ok');}
+  else{setSave('ok');document.getElementById('slbl').textContent='새 세션 — 자동저장됩니다';}
+  document.getElementById('bal-date').value=balDate;
+  document.getElementById('bal-weight').value=balWeight;
+  document.getElementById('bal-phase').value=balPhase;
+  renderAll();
+  document.getElementById('unit-sel').addEventListener('change',function(){updateScaleUnitLbl();updateAlarmUnitLbl();});
+})();
+</script>
+</body>
+</html>
