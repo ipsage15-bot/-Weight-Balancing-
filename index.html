@@ -5,184 +5,536 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Weight Balancing 자동 계산</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @media print{
-  body{padding:0;background:#fff;}
+  body{padding:0!important;background:#fff;}
   .no-print{display:none!important;}
   .print-only{display:block!important;}
-  .card{break-inside:avoid;border:0.5px solid #ccc;box-shadow:none;}
-  .print-page{page-break-after:always;}
   canvas{max-width:100%!important;}
 }
 .print-only{display:none;}
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
 :root{
-  --bg:#f5f5f3;--card:#fff;--bg2:#f0efea;--bg-info:#e6f1fb;--bg-ok:#eaf3de;--bg-warn:#faeeda;--bg-iv:#f3effe;--bg-avg:#fff3cd;--bg-sol:#fff0f5;
-  --t1:#1a1a18;--t2:#5f5e5a;--t3:#888780;--ti:#0c447c;--tok:#27500a;--tw:#633806;--td:#a32d2d;--tv:#3c3489;--tavg:#7a4f00;--tsol:#6b0030;
-  --b:rgba(0,0,0,0.12);--bh:rgba(0,0,0,0.25);--bi:rgba(24,95,165,0.4);--bd:rgba(163,45,45,0.4);--bo:rgba(39,80,10,0.4);--bv:rgba(60,52,137,0.4);--bsol:rgba(107,0,48,0.4);
-  --rmd:8px;--rlg:12px;
+  /* ── Surfaces ── */
+  --bg:        #f6f7f9;
+  --surface:   #ffffff;
+  --surface2:  #f9fafb;
+  --surface3:  #f1f3f5;
+
+  /* ── Text ── */
+  --t1:#1a1f29; --t2:#3d4554; --t3:#717a8c; --t4:#9aa3b2;
+
+  /* ── Brand: indigo (Datadog-like) ── */
+  --brand:     #4f46e5;
+  --brand-h:   #4338ca;
+  --brand-lt:  #eef2ff;
+  --brand-bd:  #c7d2fe;
+
+  /* ── Status ── */
+  --ok:#0f9d58;   --ok-bg:#ecfdf5;   --ok-bd:#a7f3d0;
+  --warn:#c2710a; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+  --danger:#dc2626; --danger-bg:#fef2f2; --danger-bd:#fecaca;
+  --sol:#a21caf;  --sol-bg:#fdf4ff;  --sol-bd:#f0abfc;
+  --cyan:#0e7490; --cyan-bg:#ecfeff; --cyan-bd:#a5f3fc;
+
+  --bd:#e4e7ec; --bd2:#cdd3dd;
+  --r:6px; --rl:10px; --rxl:12px;
+  --sh-sm:0 1px 2px rgba(16,24,40,.05);
+  --sh:0 1px 3px rgba(16,24,40,.08),0 1px 2px rgba(16,24,40,.04);
+  --sh-md:0 4px 12px rgba(16,24,40,.08);
 }
-@media(prefers-color-scheme:dark){:root{
-  --bg:#161614;--card:#1e1e1c;--bg2:#2a2a28;--bg-info:#0c2035;--bg-ok:#173404;--bg-warn:#412402;--bg-iv:#1a1840;--bg-avg:#2a1f00;--bg-sol:#2a0010;
-  --t1:#f0efe8;--t2:#b4b2a9;--t3:#888780;--ti:#85b7eb;--tok:#97c459;--tw:#ef9f27;--td:#f09595;--tv:#afa9ec;--tavg:#f0c040;--tsol:#f580a0;
-  --b:rgba(255,255,255,0.1);--bh:rgba(255,255,255,0.22);--bi:rgba(133,183,235,0.35);--bd:rgba(240,149,149,0.35);--bo:rgba(151,196,89,0.35);--bv:rgba(175,169,236,0.35);--bsol:rgba(245,128,160,0.35);
-}}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;background:var(--bg);color:var(--t1);padding:14px 18px 60px;}
-h1{font-size:17px;font-weight:500;margin-bottom:3px;}
-.sub{font-size:11px;color:var(--t3);margin-bottom:12px;}
-.card{background:var(--card);border:0.5px solid var(--b);border-radius:var(--rlg);padding:.85rem 1rem;margin-bottom:10px;}
-.ctitle{font-size:11px;font-weight:500;color:var(--t2);margin-bottom:8px;}
-.sbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:var(--card);border:0.5px solid var(--b);border-radius:var(--rlg);padding:7px 1rem;margin-bottom:10px;}
-.sdot{width:7px;height:7px;border-radius:50%;background:#888;flex-shrink:0;transition:background .3s;}
-.sdot.ok{background:#639922;}.sdot.pend{background:#BA7517;}
-.sstatus{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t3);}
-.btn{padding:4px 11px;font-size:11px;border:0.5px solid var(--bh);border-radius:var(--rmd);background:transparent;color:var(--t2);cursor:pointer;font-family:inherit;transition:background .12s;}
-.btn:hover{background:var(--bg2);}
-.btn-p{color:var(--ti);border-color:var(--bi);}
-.btn-g{color:var(--tok);border-color:var(--bo);}
-.btn-w{color:var(--tw);border-color:rgba(186,117,23,.4);}
-.btn-d{color:var(--td);border-color:var(--bd);}
-.btn-v{color:var(--tv);border-color:var(--bv);}
-.btn-sol{color:var(--tsol);border-color:var(--bsol);font-weight:500;}
-.btn-pdf{background:var(--ti);color:#fff;border-color:var(--ti);font-weight:500;padding:5px 14px;}
-.btn-pdf:hover{opacity:.88;background:var(--ti);}
-.brg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:5px;}
-@media(max-width:480px){.brg-grid{grid-template-columns:repeat(2,1fr);}}
-.bcard{border:0.5px solid var(--b);border-radius:var(--rmd);padding:6px 8px;cursor:pointer;transition:border-color .15s,background .15s;}
-.bcard:hover{border-color:var(--bh);}.bcard.on{border-color:#378ADD;background:var(--bg-info);}
-.btop{display:flex;align-items:center;gap:5px;margin-bottom:2px;}
+
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  font-size:13px;line-height:1.55;
+  background:var(--bg);color:var(--t1);
+  padding-right:302px;padding-left:302px;
+  -webkit-font-smoothing:antialiased;
+}
+@media(max-width:1100px){body{padding-left:0;}}
+@media(max-width:900px){body{padding-right:0;}}
+
+/* ══════════ 헤더 ══════════ */
+#top-header{
+  position:sticky;top:0;z-index:200;height:54px;
+  background:rgba(255,255,255,.94);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--bd);
+  display:flex;align-items:center;padding:0 24px;gap:14px;
+}
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.logo-mark{
+  width:32px;height:32px;border-radius:9px;flex-shrink:0;
+  background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:15px;font-weight:700;
+  box-shadow:0 2px 6px rgba(79,70,229,.32);
+}
+.logo-name{font-size:14px;font-weight:700;color:var(--t1);letter-spacing:-.35px;}
+.logo-tag{font-size:10px;color:var(--t4);margin-top:0;letter-spacing:.1px;}
+.hd-sep{width:1px;height:22px;background:var(--bd);flex-shrink:0;}
+#report-title{
+  flex:1;min-width:0;font-size:13px;font-weight:500;
+  border:none;background:transparent;color:var(--t2);
+  outline:none;font-family:inherit;
+  border-bottom:1.5px solid transparent;padding:2px 2px 3px;
+  transition:all .15s;
+}
+#report-title:hover{color:var(--t1);border-bottom-color:var(--bd2);}
+#report-title:focus{color:var(--t1);border-bottom-color:var(--brand);}
+.hd-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+
+/* ══════════ 버튼 ══════════ */
+.btn{
+  display:inline-flex;align-items:center;gap:5px;
+  height:32px;padding:0 13px;
+  font-size:12px;font-weight:500;
+  border:1px solid var(--bd2);border-radius:var(--r);
+  background:var(--surface);color:var(--t2);
+  cursor:pointer;font-family:inherit;
+  transition:all .13s;white-space:nowrap;
+  box-shadow:var(--sh-sm);
+}
+.btn:hover{background:var(--surface3);color:var(--t1);}
+.btn:active{transform:translateY(.5px);}
+.btn-pdf{
+  background:var(--brand);color:#fff;border-color:var(--brand);
+  font-weight:600;box-shadow:0 1px 4px rgba(79,70,229,.35);
+}
+.btn-pdf:hover{background:var(--brand-h);border-color:var(--brand-h);color:#fff;}
+.btn-g{color:var(--ok);} .btn-g:hover{background:var(--ok-bg);border-color:var(--ok-bd);}
+.btn-w{color:var(--warn);} .btn-w:hover{background:var(--warn-bg);border-color:var(--warn-bd);}
+.btn-d{color:var(--danger);} .btn-d:hover{background:var(--danger-bg);border-color:var(--danger-bd);}
+.btn-p{color:var(--brand);} .btn-p:hover{background:var(--brand-lt);border-color:var(--brand-bd);}
+.btn-v{color:var(--sol);} .btn-v:hover{background:var(--sol-bg);border-color:var(--sol-bd);}
+.btn-sol{color:var(--sol);font-weight:600;}
+
+/* ══════════ 탭 네비게이션 ══════════ */
+.tabbar{
+  position:sticky;top:54px;z-index:190;
+  background:rgba(255,255,255,.94);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--bd);
+  display:flex;align-items:center;
+  padding:0 24px;gap:2px;height:42px;
+}
+.tabbar-tab{
+  display:inline-flex;align-items:center;gap:6px;
+  height:42px;padding:0 16px;
+  font-size:12.5px;font-weight:500;
+  color:var(--t3);cursor:pointer;
+  border:none;background:transparent;font-family:inherit;
+  border-bottom:2px solid transparent;
+  margin-bottom:-1px;
+  transition:color .13s,border-color .13s;
+  white-space:nowrap;
+}
+.tabbar-tab:hover{color:var(--t1);}
+.tabbar-tab.on{color:var(--brand);border-bottom-color:var(--brand);font-weight:600;}
+.tabbar-tab .tab-ico{font-size:13px;opacity:.85;}
+.tabbar-status{
+  margin-left:auto;display:flex;align-items:center;gap:6px;
+  font-size:11px;color:var(--t4);
+}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--t4);transition:background .3s;}
+.sdot.ok{background:#10b981;}
+.sdot.pend{background:#f59e0b;}
+
+.tab-panel{display:none;}
+.tab-panel.on{display:block;animation:tabIn .18s ease;}
+@keyframes tabIn{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:translateY(0);}}
+
+/* ══════════ 메인 ══════════ */
+.main-wrap{max-width:1000px;margin:0 auto;padding:20px 24px 70px;}
+
+.card{
+  background:var(--surface);
+  border:1px solid var(--bd);
+  border-radius:var(--rxl);
+  padding:20px 22px;margin-bottom:12px;
+  box-shadow:var(--sh);
+  transition:box-shadow .18s;
+}
+.card:hover{box-shadow:var(--sh-md);}
+
+.section-head{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--bd);
+}
+.ctitle{
+  display:flex;align-items:center;gap:8px;
+  font-size:12.5px;font-weight:600;color:var(--t1);letter-spacing:-.1px;
+}
+.hint{font-size:10.5px;color:var(--t4);margin-top:6px;}
+.toprow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+
+/* ══════════ 베어링 카드 ══════════ */
+.brg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:6px;}
+@media(max-width:640px){.brg-grid{grid-template-columns:repeat(2,1fr);}}
+.bcard{
+  border:1.5px solid var(--bd);border-radius:var(--rl);
+  padding:9px 11px;cursor:pointer;background:var(--surface);
+  transition:all .15s;
+}
+.bcard:hover{border-color:var(--bd2);box-shadow:var(--sh-sm);}
+.bcard.on{border-color:var(--brand);background:var(--brand-lt);box-shadow:0 0 0 3px rgba(79,70,229,.08);}
+.btop{display:flex;align-items:center;gap:6px;margin-bottom:3px;}
 .bdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.bnum{font-size:10px;font-weight:500;}
-.bname{width:100%;font-size:11px;border:none;background:transparent;color:var(--t2);outline:none;font-family:inherit;}
+.bnum{font-size:9.5px;font-weight:600;color:var(--t4);letter-spacing:.4px;}
+.bname{width:100%;font-size:12px;border:none;background:transparent;color:var(--t2);outline:none;font-family:inherit;font-weight:500;}
 .bname:focus{color:var(--t1);}
-.tab{padding:3px 10px;font-size:11px;border:0.5px solid var(--bh);border-radius:var(--rmd);background:transparent;color:var(--t2);cursor:pointer;font-family:inherit;}
-.tab:hover{background:var(--bg2);}.tab.on{background:var(--bg-info);color:var(--ti);border-color:transparent;}
-.mtab{padding:3px 12px;font-size:11px;border:0.5px solid var(--bh);border-radius:var(--rmd);background:transparent;color:var(--t2);cursor:pointer;font-family:inherit;}
-.mtab:hover{background:var(--bg2);}.mtab.on{background:var(--bg-iv);color:var(--tv);border-color:transparent;}
-.toprow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;}
-.brg-filter{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;align-items:center;}
-.brg-ftab{padding:3px 10px;font-size:11px;border:0.5px solid var(--bh);border-radius:20px;background:transparent;color:var(--t2);cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;}
-.brg-ftab:hover{background:var(--bg2);}
-.phase-corr-box{display:flex;align-items:center;gap:10px;background:var(--bg-warn);border:0.5px solid rgba(186,117,23,.35);border-radius:var(--rmd);padding:7px 12px;margin-bottom:10px;flex-wrap:wrap;}
-.bal-meta-box{background:var(--bg-ok);border:0.5px solid var(--bo);border-radius:var(--rmd);padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-.bal-meta-label{font-size:11px;font-weight:500;color:var(--tok);}
+.bcard.on .bname{color:var(--brand);}
+
+/* ══════════ 위상 보정 / 메타 ══════════ */
+.phase-corr-box{
+  display:flex;align-items:center;gap:10px;
+  background:var(--warn-bg);border:1px solid var(--warn-bd);
+  border-radius:var(--r);padding:7px 12px;margin-bottom:12px;
+  flex-wrap:wrap;font-size:11.5px;color:var(--warn);
+}
+.brg-filter{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;align-items:center;}
+.brg-ftab{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 11px;font-size:11px;font-weight:500;
+  border:1px solid var(--bd);border-radius:20px;
+  background:var(--surface);color:var(--t3);
+  cursor:pointer;font-family:inherit;transition:all .12s;
+}
+.brg-ftab:hover{border-color:var(--bd2);color:var(--t1);}
+.bal-meta-box{
+  background:var(--ok-bg);border:1px solid var(--ok-bd);
+  border-radius:var(--r);padding:9px 14px;margin-bottom:10px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.bal-meta-label{font-size:11px;font-weight:600;color:var(--ok);}
 .bal-meta-sel{display:flex;gap:4px;flex-wrap:wrap;}
-.bsel{padding:2px 8px;font-size:11px;border:0.5px solid var(--bo);border-radius:10px;background:transparent;color:var(--tok);cursor:pointer;font-family:inherit;}
-.bsel.on{background:var(--tok);color:#fff;}
-.phase-block{margin-bottom:14px;}
-.phase-label{font-size:11px;font-weight:500;padding:4px 10px;border-radius:var(--rmd);margin-bottom:6px;display:inline-block;}
-.phase-label.before{background:var(--bg-info);color:var(--ti);}
-.phase-label.after{background:var(--bg-ok);color:var(--tok);}
+.bsel{
+  padding:2px 9px;font-size:11px;
+  border:1px solid var(--ok-bd);border-radius:10px;
+  background:transparent;color:var(--ok);cursor:pointer;font-family:inherit;transition:all .12s;
+}
+.bsel.on{background:var(--ok);color:#fff;border-color:var(--ok);}
+
+.phase-block{margin-bottom:16px;}
+.phase-label{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:10.5px;font-weight:600;
+  padding:3px 11px;border-radius:20px;margin-bottom:8px;letter-spacing:.2px;
+}
+.phase-label.before{background:var(--brand-lt);color:var(--brand);border:1px solid var(--brand-bd);}
+.phase-label.after{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-bd);}
+
+/* ══════════ 테이블 ══════════ */
 .sx{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-table.t{border-collapse:collapse;font-size:12px;width:100%;}
-table.t th{text-align:left;padding:5px 7px;font-size:11px;font-weight:500;color:var(--t2);border-bottom:0.5px solid var(--b);border-right:0.5px solid var(--b);white-space:nowrap;}
+table.t{border-collapse:separate;border-spacing:0;font-size:12px;width:100%;border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden;}
+table.t th{
+  text-align:left;padding:8px 10px;
+  font-size:10px;font-weight:600;color:var(--t3);
+  background:var(--surface2);
+  border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);
+  white-space:nowrap;text-transform:uppercase;letter-spacing:.35px;
+}
 table.t th:last-child{border-right:none;}
-table.t td{padding:3px 5px;border-bottom:0.5px solid var(--b);border-right:0.5px solid rgba(0,0,0,0.06);vertical-align:middle;}
+table.t td{padding:6px 8px;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);vertical-align:middle;}
 table.t td:last-child{border-right:none;}
-table.t .avg-row td{background:var(--bg-avg);color:var(--tavg);font-weight:500;font-size:11px;border-top:1.5px solid rgba(186,117,23,.4);}
-.ci{border:none;background:transparent;color:var(--t1);font-size:12px;padding:2px 3px;outline:none;font-family:inherit;width:100%;}
-.ci:focus{background:var(--bg2);border-radius:3px;padding:2px 5px;}
-.ni{width:52px;text-align:right;}
-.date-inp{border:none;background:transparent;color:var(--t1);font-size:12px;padding:2px 3px;outline:none;font-family:inherit;width:110px;cursor:pointer;}
-.date-inp:focus{background:var(--bg2);border-radius:3px;padding:2px 5px;}
-.hint{font-size:11px;color:var(--t3);margin-top:5px;}
-.ax-badge{display:inline-block;padding:1px 5px;border-radius:4px;font-size:9px;font-weight:500;}
-.ax-x{background:var(--bg-info);color:var(--ti);}
-.ax-y{background:var(--bg-iv);color:var(--tv);}
-/* IV */
-.iv-plane-wrap{border:0.5px solid var(--b);border-radius:var(--rmd);margin-bottom:10px;overflow:hidden;}
-.iv-plane-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:0.5px solid var(--b);}
-.iv-body{padding:10px 12px;}
-.auto-box{background:var(--bg-info);border:0.5px solid var(--bi);border-radius:var(--rmd);padding:8px 12px;margin-bottom:10px;}
-.auto-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--ti);}
-.tw-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--t2);background:var(--bg2);border-radius:var(--rmd);padding:6px 10px;margin-bottom:10px;}
-.shared-g-row{display:flex;align-items:center;gap:8px;background:var(--bg-warn);border:0.5px solid rgba(186,117,23,.35);border-radius:var(--rmd);padding:6px 10px;margin-bottom:8px;font-size:11px;color:var(--tw);flex-wrap:wrap;}
-.iv-matrix{border:0.5px solid var(--b);border-radius:var(--rmd);overflow:hidden;margin-bottom:10px;}
-table.iv-tbl{border-collapse:collapse;width:100%;font-size:11px;}
-table.iv-tbl th{background:var(--bg2);padding:5px 8px;font-size:10px;font-weight:500;color:var(--t3);border-bottom:0.5px solid var(--b);text-align:center;white-space:nowrap;}
-table.iv-tbl td{padding:4px 6px;border-bottom:0.5px solid var(--b);vertical-align:middle;}
+table.t tr:last-child td{border-bottom:none;}
+table.t tbody tr{transition:background .1s;}
+table.t tbody tr:hover td{background:var(--brand-lt);}
+table.t .avg-row td{
+  background:var(--warn-bg);color:var(--warn);
+  font-weight:600;font-size:11px;
+  border-top:1.5px solid var(--warn-bd);
+  font-family:'JetBrains Mono',monospace;
+}
+
+/* ══════════ 인풋 ══════════ */
+.ci{border:none;background:transparent;color:var(--t1);font-size:12px;padding:2px 4px;outline:none;font-family:'JetBrains Mono',monospace;width:100%;}
+.ci:focus{background:var(--brand-lt);border-radius:3px;color:var(--brand);}
+.ni{width:54px;text-align:right;}
+.date-inp{border:none;background:transparent;color:var(--t2);font-size:12px;padding:2px 4px;outline:none;font-family:inherit;width:112px;cursor:pointer;}
+.date-inp:focus{color:var(--t1);}
+.inp-nm{height:28px;padding:0 9px;font-size:12px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--surface);color:var(--t1);font-family:inherit;transition:all .12s;}
+.inp-nm:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(79,70,229,.1);}
+.sel-sm{height:28px;padding:0 8px;font-size:12px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--surface);color:var(--t1);font-family:inherit;}
+.sel-sm:focus{outline:none;border-color:var(--brand);}
+
+/* ══════════ 배지/필 ══════════ */
+.ax-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:9.5px;font-weight:600;letter-spacing:.2px;}
+.ax-x{background:var(--brand-lt);color:var(--brand);}
+.ax-y{background:var(--cyan-bg);color:var(--cyan);}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:9.5px;font-weight:600;}
+.pill-g{background:var(--ok-bg);color:var(--ok);}
+.pill-v{background:var(--sol-bg);color:var(--sol);}
+
+.tab{height:28px;padding:0 11px;font-size:11.5px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--surface);color:var(--t3);cursor:pointer;font-family:inherit;transition:all .12s;}
+.tab:hover{color:var(--t1);}
+.tab.on{background:var(--brand-lt);color:var(--brand);border-color:var(--brand-bd);font-weight:500;}
+.mtab{height:28px;padding:0 12px;font-size:11.5px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--surface);color:var(--t3);cursor:pointer;font-family:inherit;transition:all .12s;}
+.mtab:hover{color:var(--t1);}
+.mtab.on{background:var(--sol-bg);color:var(--sol);border-color:var(--sol-bd);font-weight:500;}
+
+/* ══════════ IV 섹션 ══════════ */
+.iv-plane-wrap{border:1px solid var(--bd);border-radius:var(--rl);margin-bottom:12px;overflow:hidden;box-shadow:var(--sh-sm);}
+.iv-plane-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--bd);background:var(--surface2);}
+.iv-body{padding:14px 16px;}
+.auto-box{background:var(--brand-lt);border:1px solid var(--brand-bd);border-radius:var(--r);padding:10px 14px;margin-bottom:12px;}
+.auto-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--brand);}
+.tw-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--t2);background:var(--surface2);border:1px solid var(--bd);border-radius:var(--r);padding:8px 12px;margin-bottom:12px;}
+.shared-g-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--warn-bg);border:1px solid var(--warn-bd);border-radius:var(--r);padding:8px 12px;margin-bottom:10px;font-size:11.5px;color:var(--warn);}
+.iv-matrix{border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden;margin-bottom:12px;}
+table.iv-tbl{border-collapse:collapse;width:100%;font-size:11.5px;}
+table.iv-tbl th{background:var(--surface2);padding:7px 9px;font-size:9.5px;font-weight:600;color:var(--t3);border-bottom:1px solid var(--bd);text-align:center;white-space:nowrap;letter-spacing:.3px;text-transform:uppercase;}
+table.iv-tbl td{padding:5px 8px;border-bottom:1px solid var(--bd);vertical-align:middle;}
 table.iv-tbl tr:last-child td{border-bottom:none;}
-.iv-inp{width:60px;padding:2px 5px;font-size:11px;border:0.5px solid var(--bh);border-radius:var(--rmd);background:var(--card);color:var(--t1);font-family:inherit;text-align:right;}
-.iv-inp.auto-val{background:var(--bg-ok);color:var(--tok);border-color:var(--bo);}
-.iv-inp.manual-val{background:var(--bg-iv);color:var(--tv);border-color:var(--bv);}
-/* 교정 Weight */
-.cw-section{border:0.5px solid var(--bo);border-radius:var(--rmd);overflow:hidden;margin-top:4px;}
-.cw-header{background:var(--bg-ok);padding:6px 12px;font-size:11px;font-weight:500;color:var(--tok);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+table.iv-tbl tbody tr:hover td{background:var(--surface2);}
+.iv-inp{width:64px;height:26px;padding:0 6px;font-size:11.5px;border:1px solid var(--bd2);border-radius:4px;background:var(--surface);color:var(--t1);font-family:'JetBrains Mono',monospace;text-align:right;transition:all .12s;}
+.iv-inp:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 2px rgba(79,70,229,.1);}
+.iv-inp.auto-val{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-bd);}
+.iv-inp.manual-val{background:var(--sol-bg);color:var(--sol);border-color:var(--sol-bd);}
+.conv-cell{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--warn);}
+
+/* ══════════ 교정 Weight ══════════ */
+.cw-section{border:1px solid var(--ok-bd);border-radius:var(--rl);overflow:hidden;margin-top:8px;}
+.cw-header{background:var(--ok-bg);padding:9px 14px;font-size:11.5px;font-weight:600;color:var(--ok);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
 .cw-inputs{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.cw-body{padding:8px 12px;}
-table.pred-tbl{border-collapse:collapse;width:100%;font-size:11px;}
-table.pred-tbl th{text-align:left;padding:4px 8px;font-size:10px;font-weight:500;color:var(--t3);border-bottom:0.5px solid var(--b);white-space:nowrap;}
-table.pred-tbl td{padding:4px 8px;border-bottom:0.5px solid var(--b);vertical-align:middle;white-space:nowrap;}
+.cw-body{padding:10px 14px;}
+table.pred-tbl{border-collapse:collapse;width:100%;font-size:11.5px;}
+table.pred-tbl th{text-align:left;padding:6px 9px;font-size:10px;font-weight:600;color:var(--t3);border-bottom:1px solid var(--bd);white-space:nowrap;text-transform:uppercase;letter-spacing:.3px;}
+table.pred-tbl td{padding:5px 9px;border-bottom:1px solid var(--bd);vertical-align:middle;font-family:'JetBrains Mono',monospace;font-size:11px;}
 table.pred-tbl tr:last-child td{border-bottom:none;}
-.delta-ok{color:var(--tok);font-weight:500;}
-.delta-ng{color:var(--td);font-weight:500;}
-.ngrow{background:var(--bg-warn);border-top:0.5px solid rgba(186,117,23,.3);padding:8px 12px;font-size:11px;color:var(--tw);}
+.delta-ok{color:var(--ok);font-weight:600;}
+.delta-ng{color:var(--danger);font-weight:600;}
+.ngrow{background:var(--warn-bg);border-top:1px solid var(--warn-bd);padding:10px 14px;font-size:11.5px;color:var(--warn);}
 .ng-inputs{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
-/* 역산 섹션 */
-.inv-section{border:0.5px solid var(--bsol);border-radius:var(--rmd);overflow:hidden;margin-top:8px;}
-.inv-header{background:var(--bg-sol);padding:8px 12px;border-bottom:0.5px solid var(--bsol);}
-.inv-title{font-size:12px;font-weight:500;color:var(--tsol);margin-bottom:4px;}
-.inv-desc{font-size:10px;color:var(--tsol);opacity:.8;}
-.inv-body{padding:10px 12px;}
-.date-check-grid{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
-.date-chk-item{display:flex;align-items:center;gap:4px;font-size:11px;padding:3px 8px;border:0.5px solid var(--b);border-radius:var(--rmd);cursor:pointer;background:var(--card);}
-.date-chk-item.sel{background:var(--bg-sol);border-color:var(--bsol);color:var(--tsol);}
-.inv-result-box{background:var(--bg2);border-radius:var(--rmd);padding:8px 12px;margin-top:8px;}
-.inv-result-title{font-size:11px;font-weight:500;color:var(--t2);margin-bottom:6px;}
-table.inv-tbl{border-collapse:collapse;width:100%;font-size:11px;}
-table.inv-tbl th{background:var(--bg2);padding:4px 8px;font-size:10px;font-weight:500;color:var(--t3);border-bottom:0.5px solid var(--b);text-align:center;white-space:nowrap;}
-table.inv-tbl td{padding:5px 8px;border-bottom:0.5px solid var(--b);text-align:center;vertical-align:middle;}
-table.inv-tbl tr:last-child td{border-bottom:none;}
-.sol-highlight{color:var(--tsol);font-weight:600;font-size:13px;}
-/* Alarm/Trip */
-.alarm-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:var(--bg2);border-radius:var(--rmd);padding:8px 12px;margin-bottom:8px;font-size:11px;}
-.alarm-item{display:flex;align-items:center;gap:6px;}
-.alarm-dot-alarm{width:10px;height:10px;border-radius:50%;background:#e6a817;flex-shrink:0;}
-.alarm-dot-trip{width:10px;height:10px;border-radius:50%;background:#d42f2f;flex-shrink:0;}
-/* Polar 설정 */
-.settings{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
-.si{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2);}
+
+/* ══════════ 역산 ══════════ */
+.inv-section{border:1px solid var(--sol-bd);border-radius:var(--rl);overflow:hidden;margin-top:8px;}
+.inv-header{background:var(--sol-bg);padding:10px 14px;border-bottom:1px solid var(--sol-bd);}
+.inv-title{font-size:12px;font-weight:600;color:var(--sol);margin-bottom:3px;}
+.inv-desc{font-size:10.5px;color:var(--sol);opacity:.75;}
+.inv-body{padding:12px 14px;}
+.date-check-grid{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px;}
+.date-chk-item{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;font-size:11.5px;border:1px solid var(--bd2);border-radius:20px;cursor:pointer;background:var(--surface);color:var(--t3);transition:all .12s;}
+.date-chk-item:hover{border-color:var(--sol-bd);color:var(--sol);}
+.date-chk-item.sel{background:var(--sol-bg);border-color:var(--sol-bd);color:var(--sol);font-weight:500;}
+.sol-highlight{color:var(--sol);font-weight:700;font-size:14px;font-family:'JetBrains Mono',monospace;}
+
+/* ══════════ Alarm/Trip ══════════ */
+.alarm-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center;background:var(--surface2);border:1px solid var(--bd);border-radius:var(--r);padding:9px 14px;margin-bottom:10px;font-size:11.5px;}
+.alarm-item{display:flex;align-items:center;gap:7px;}
+.alarm-dot-alarm{width:8px;height:8px;border-radius:50%;background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.18);flex-shrink:0;}
+.alarm-dot-trip{width:8px;height:8px;border-radius:50%;background:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,.16);flex-shrink:0;}
+
+/* ══════════ Polar Sheet ══════════ */
+.settings{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+.si{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--t2);}
 .si label{display:flex;align-items:center;gap:4px;cursor:pointer;}
-.si select,.si input[type=number]{padding:3px 6px;font-size:11px;border:0.5px solid var(--bh);border-radius:var(--rmd);background:var(--bg2);color:var(--t1);font-family:inherit;}
-.si input[type=number]{width:58px;}
-.polar-brg-filter{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;}
-.pbf{padding:2px 9px;font-size:11px;border-radius:10px;border:0.5px solid var(--bh);background:transparent;color:var(--t2);cursor:pointer;font-family:inherit;}
-.pbf:hover{background:var(--bg2);}
-canvas{display:block;margin:0 auto;max-width:100%;}
-.leg{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
-.li{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--t2);}
+.si label:hover{color:var(--t1);}
+.si select,.si input[type=number]{height:28px;padding:0 7px;font-size:11.5px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--surface);color:var(--t1);font-family:inherit;}
+.si input[type=number]{width:60px;font-family:'JetBrains Mono',monospace;}
+.si select:focus,.si input[type=number]:focus{outline:none;border-color:var(--brand);}
+.polar-brg-filter{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;}
+.pbf{padding:3px 11px;font-size:11px;font-weight:500;border-radius:20px;border:1px solid var(--bd);background:var(--surface);color:var(--t3);cursor:pointer;font-family:inherit;transition:all .12s;}
+.pbf:hover{border-color:var(--bd2);color:var(--t1);}
+.polar-stage{
+  background:#fff;
+  border:1px solid var(--bd);
+  border-radius:var(--rxl);
+  padding:8px;
+  box-shadow:inset 0 1px 3px rgba(16,24,40,.04);
+}
+canvas{display:block;margin:0 auto;max-width:100%;border-radius:var(--rl);}
+.leg{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.li{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--t2);}
 .ldot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.hsep{width:100%;height:0.5px;background:var(--b);margin:4px 0;}
-.pill{display:inline-block;padding:1px 6px;border-radius:6px;font-size:9px;font-weight:500;}
-.pill-g{background:var(--bg-ok);color:var(--tok);}
-.pill-v{background:var(--bg-iv);color:var(--tv);}
+
+input[type=checkbox]{accent-color:var(--brand);width:13px;height:13px;cursor:pointer;}
 input[type=file]{display:none;}
-.inp-nm{padding:3px 6px;font-size:11px;border:0.5px solid var(--bh);border-radius:var(--rmd);background:var(--card);color:var(--t1);font-family:inherit;}
-.sel-sm{padding:3px 6px;font-size:11px;border:0.5px solid var(--bh);border-radius:var(--rmd);background:var(--card);color:var(--t1);font-family:inherit;}
+
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--surface2);}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--t4);}
+
+/* ══════════ 우측 ADRE 패널 ══════════ */
+.right-panel{
+  position:fixed;right:0;top:96px;
+  width:302px;height:calc(100vh - 96px);
+  overflow-y:auto;overflow-x:hidden;
+  background:#fff;border-left:1px solid var(--bd);
+  z-index:150;display:flex;flex-direction:column;
+}
+@media print{.right-panel{display:none;}}
+@media(max-width:900px){.right-panel{display:none;}}
+
+/* ── 왼쪽 Weight Hole 패널 ── */
+.left-panel{
+  position:fixed;left:0;top:96px;
+  width:302px;height:calc(100vh - 96px);
+  overflow-y:auto;overflow-x:hidden;
+  background:#fff;border-right:1px solid var(--bd);
+  z-index:150;display:flex;flex-direction:column;
+}
+@media print{.left-panel{display:none;}}
+@media(max-width:1100px){.left-panel{display:none;}}
+.lp-header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--bd);padding:11px 14px 10px;}
+.lp-title{font-size:11px;font-weight:700;color:var(--t1);letter-spacing:.5px;text-transform:uppercase;display:flex;align-items:center;gap:6px;}
+.lp-title::before{content:'';width:3px;height:14px;background:var(--brand);border-radius:2px;flex-shrink:0;}
+.lp-sub{font-size:10px;color:var(--t3);margin-top:3px;}
+.lp-body{padding:12px 14px;flex:1;}
+.wh-calc{background:var(--brand-lt);border:1px solid var(--brand-bd);border-radius:var(--rl);padding:12px;margin-bottom:14px;}
+.wh-calc-label{font-size:10px;font-weight:600;color:var(--brand);text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px;}
+.wh-input-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.wh-deg-input{flex:1;height:38px;padding:0 10px;font-size:16px;font-weight:600;font-family:'JetBrains Mono',monospace;border:1.5px solid var(--brand-bd);border-radius:var(--r);background:#fff;color:var(--t1);outline:none;text-align:right;transition:all .12s;}
+.wh-deg-input:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(79,70,229,.1);}
+.wh-deg-unit{font-size:15px;font-weight:600;color:var(--t3);}
+.wh-result{display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;border:1.5px solid var(--brand);border-radius:var(--r);padding:10px;}
+.wh-result-num{font-size:30px;font-weight:700;color:var(--brand);font-family:'JetBrains Mono',monospace;line-height:1;}
+.wh-result-label{font-size:13px;font-weight:600;color:var(--t2);}
+.wh-result-empty{font-size:13px;color:var(--t4);padding:14px;text-align:center;}
+/* ── GT 영향벡터 기준표 ── */
+.gt-iv-block{margin-top:4px;}
+.gt-iv-sel-row{margin-bottom:10px;}
+.gt-iv-select{width:100%;height:34px;padding:0 10px;font-size:13px;font-weight:600;border:1.5px solid var(--brand-bd);border-radius:var(--r);background:var(--brand-lt);color:var(--brand);font-family:inherit;cursor:pointer;outline:none;}
+.gt-iv-select:focus{border-color:var(--brand);}
+.gt-iv-heading{font-size:12.5px;font-weight:700;color:var(--t1);margin-bottom:2px;}
+.gt-iv-cond{font-size:10.5px;color:var(--t3);margin-bottom:9px;}
+.gt-iv-tbl{border-collapse:collapse;width:100%;font-size:11px;}
+.gt-iv-tbl th{background:var(--surface2);padding:6px 4px;border:1px solid var(--bd);font-weight:600;color:var(--t3);font-size:9.5px;letter-spacing:.2px;}
+.gt-iv-tbl td{padding:0;border:1px solid var(--bd);text-align:center;vertical-align:middle;}
+.gt-iv-tbl td.brg-lbl{padding:4px 6px;font-weight:600;color:var(--t2);font-size:10px;background:var(--surface2);white-space:nowrap;font-family:'JetBrains Mono',monospace;}
+.gt-iv-inp{width:100%;border:none;background:transparent;outline:none;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--t1);padding:5px 4px;text-align:center;cursor:text;}
+.gt-iv-inp:focus{background:var(--brand-lt);color:var(--brand);}
+.gt-iv-tbl tr:hover .gt-iv-inp:not(:focus){background:var(--surface2);}
+.gt-iv-note-label{font-size:9.5px;font-weight:700;color:var(--t4);letter-spacing:.4px;text-transform:uppercase;margin:12px 0 5px;}
+.gt-iv-note{width:100%;height:60px;padding:7px 9px;font-size:11px;font-family:inherit;border:1px solid var(--bd2);border-radius:var(--r);background:var(--surface2);color:var(--t1);resize:none;outline:none;transition:border-color .12s;}
+.gt-iv-note:focus{border-color:var(--brand);background:#fff;}
+.rp-header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--bd);padding:11px 14px 10px;}
+.rp-title{font-size:11px;font-weight:700;color:var(--t1);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.rp-title::before{content:'';width:3px;height:14px;background:var(--brand);border-radius:2px;flex-shrink:0;}
+.rp-toggles{display:flex;gap:16px;}
+.rp-toggle-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2);cursor:pointer;user-select:none;}
+.rp-toggle-item:hover{color:var(--t1);}
+.rp-sect-hd{padding:6px 14px;font-size:9.5px;font-weight:700;color:var(--t4);letter-spacing:.6px;text-transform:uppercase;background:var(--surface2);border-bottom:1px solid var(--bd);}
+.adre-chip-row{display:flex;gap:4px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--bd);}
+.adre-dev-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;border:1.5px solid;font-size:10.5px;font-weight:600;cursor:pointer;transition:all .12s;user-select:none;}
+.adre-dev-chip .chip-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.adre-dev-chip.selected{color:#fff!important;border-color:transparent!important;}
+.adre-border0{border-color:#4f46e5;color:#4f46e5;}.adre-border0.selected{background:#4f46e5;}
+.adre-border1{border-color:#0f9d58;color:#0f9d58;}.adre-border1.selected{background:#0f9d58;}
+.adre-border2{border-color:#d97706;color:#d97706;}.adre-border2.selected{background:#d97706;}
+.adre-border3{border-color:#a21caf;color:#a21caf;}.adre-border3.selected{background:#a21caf;}
+.adre-grid-body{padding:10px 12px;}
+.plant-block{margin-bottom:12px;}
+.plant-label{font-size:9.5px;font-weight:700;color:var(--t4);letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px;}
+.unit-grid{display:flex;flex-direction:column;gap:4px;}
+.unit-row{display:flex;align-items:center;gap:4px;}
+.unit-row-label{font-size:9.5px;font-weight:700;color:var(--t3);width:18px;flex-shrink:0;}
+.unit-cells{display:flex;gap:3px;flex-wrap:nowrap;}
+.unit-cell{width:40px;height:26px;flex-shrink:0;border-radius:5px;border:1.5px solid var(--bd2);background:#fff;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:600;color:var(--t3);cursor:pointer;transition:all .15s;user-select:none;position:relative;letter-spacing:-.4px;}
+.unit-cell:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-lt);transform:translateY(-1px);box-shadow:0 2px 5px rgba(0,0,0,.08);}
+.unit-cell.occupied{border-color:transparent!important;color:#fff;font-weight:700;}
+.adre-c0{background:#4f46e5;}.adre-c1{background:#0f9d58;}.adre-c2{background:#d97706;}.adre-c3{background:#a21caf;}
+.unit-cell[data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;font-size:9px;padding:3px 7px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:999;}
+.unit-cell[data-tip]:hover::after{opacity:1;}
+.adre-summary{margin:0 12px 8px;padding:7px 10px;background:var(--surface2);border-radius:var(--r);border:1px solid var(--bd);}
+.adre-summary-row{display:flex;align-items:flex-start;justify-content:space-between;font-size:10px;color:var(--t3);padding:2px 0;gap:6px;}
+.adre-summary-row strong{color:var(--t1);font-weight:600;text-align:right;word-break:break-all;font-size:9.5px;}
+.wt-body{padding:10px 12px 6px;}
+.wt-plant-grp{margin-bottom:12px;}
+.wt-plant-label{font-size:9.5px;font-weight:700;color:var(--t4);letter-spacing:.6px;text-transform:uppercase;margin-bottom:5px;}
+.wt-tbl{border-collapse:collapse;width:100%;}
+.wt-tbl th{padding:4px 2px;background:var(--surface2);border:1px solid var(--bd);text-align:center;font-weight:600;color:var(--t3);font-size:8.5px;white-space:nowrap;}
+.wt-tbl td{padding:0;border:1px solid var(--bd);vertical-align:middle;}
+.wt-tbl td.unit-nm{padding:3px 5px;font-weight:600;color:var(--t2);font-size:9.5px;white-space:nowrap;background:var(--surface2);text-align:left;width:32px;}
+.wt-input{width:100%;border:none;background:transparent;outline:none;font-size:8.5px;font-family:'JetBrains Mono',monospace;color:var(--t1);padding:3px 2px;text-align:center;cursor:text;}
+.wt-input:focus{background:var(--brand-lt);color:var(--brand);}
+.wt-tbl tr:hover .wt-input:not(:focus){background:var(--surface2);}
+.rp-footer{padding:10px 12px;border-top:1px solid var(--bd);margin-top:auto;}
+.rp-note-label{font-size:9.5px;font-weight:700;color:var(--t4);letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px;}
+.rp-note-area{width:100%;height:52px;padding:6px 8px;font-size:11px;font-family:inherit;border:1px solid var(--bd2);border-radius:var(--r);background:var(--surface2);color:var(--t1);resize:none;outline:none;transition:border-color .12s;margin-bottom:7px;}
+.rp-note-area:focus{border-color:var(--brand);background:#fff;}
+.rp-btn-row{display:flex;gap:5px;}
+.rp-reset-btn{flex:1;height:27px;font-size:10px;font-weight:500;border:1px solid var(--bd2);border-radius:var(--r);background:#fff;color:var(--t3);cursor:pointer;transition:all .12s;font-family:inherit;}
+.rp-reset-btn:hover{background:var(--danger-bg);border-color:var(--danger-bd);color:var(--danger);}
 </style>
 </head>
 <body>
-<div class="no-print" style="display:flex;align-items:baseline;gap:10px;margin-bottom:3px;flex-wrap:wrap;">
-  <input id="report-title" type="text" value="Weight Balancing 자동 계산"
-    style="font-size:17px;font-weight:500;border:none;background:transparent;color:var(--t1);outline:none;font-family:inherit;flex:1;min-width:260px;border-bottom:1px dashed var(--b);padding-bottom:2px;"
-    title="클릭하여 제목 편집" onchange="saveAuto()">
-  <span style="font-size:11px;color:var(--t3);">Polar Sheet 분석</span>
-</div>
-<p class="sub no-print">BRG #1~8 &nbsp;·&nbsp; 교정 Weight 역산 &nbsp;·&nbsp; 복수 날짜 절충안 &nbsp;·&nbsp; PDF 보고서 &nbsp;·&nbsp; Alarm/Trip 기준선</p>
 
-<div class="sbar no-print">
-  <div class="sstatus"><div class="sdot" id="sdot"></div><span id="slbl">초기화 중...</span></div>
-  <div style="display:flex;gap:5px;flex-wrap:wrap;">
-    <button class="btn btn-pdf" onclick="printReport()">&#x1F5A8; PDF 보고서 출력</button>
-    <button class="btn btn-g" onclick="exportJSON()">&#x2913; JSON 저장</button>
-    <button class="btn btn-w" onclick="document.getElementById('fin').click()">&#x2912; 불러오기</button>
+<!-- ── 상단 헤더 ── -->
+<header id="top-header" class="no-print">
+  <div class="logo">
+    <div class="logo-mark">W</div>
+    <div>
+      <div class="logo-name">Weight Balancing</div>
+      <div class="logo-tag">Rotating Machinery Analysis</div>
+    </div>
+  </div>
+  <div class="hd-sep"></div>
+  <input id="report-title" type="text" value="Weight Balancing 자동 계산"
+    title="클릭하여 제목 편집" onchange="saveAuto()" placeholder="보고서 제목">
+  <div class="hd-actions">
+    <button class="btn btn-pdf" onclick="printReport()">🖨&nbsp; PDF 출력</button>
+    <button class="btn btn-g" onclick="exportJSON()">↓ 저장</button>
+    <button class="btn btn-w" onclick="document.getElementById('fin').click()">↑ 불러오기</button>
     <button class="btn btn-d" onclick="clearAll()">초기화</button>
     <input type="file" id="fin" accept=".json" onchange="importJSON(event)">
   </div>
-</div>
+</header>
+<nav class="tabbar no-print">
+  <button class="tabbar-tab on" id="tabbtn-meas" onclick="switchTab('meas')"><span class="tab-ico">▦</span> 측정 데이터</button>
+  <button class="tabbar-tab" id="tabbtn-calc" onclick="switchTab('calc')"><span class="tab-ico">ƒ</span> IV 계산 · 역산</button>
+  <button class="tabbar-tab" id="tabbtn-polar" onclick="switchTab('polar')"><span class="tab-ico">◎</span> Polar Sheet</button>
+  <div class="tabbar-status"><div class="sdot" id="sdot"></div><span id="slbl">초기화 중...</span></div>
+</nav>
+<!-- ══ 왼쪽 Weight Hole 패널 ══ -->
+<aside class="left-panel no-print" id="left-panel">
+  <div class="lp-header">
+    <div class="lp-title">복합 3,4호기 Weight Hole</div>
+    <div class="lp-sub">홀 40개 · 9° 간격 · 0°=1번 (반시계 방향 번호)</div>
+  </div>
+  <div class="lp-body">
+    <!-- 각도 → 홀 산출 -->
+    <div class="wh-calc">
+      <div class="wh-calc-label">각도 입력 → 적합 홀 자동 산출</div>
+      <div class="wh-input-row">
+        <input type="number" class="wh-deg-input" id="wh-deg" placeholder="0~360" min="0" max="360" step="0.1" oninput="whCalc()">
+        <span class="wh-deg-unit">°</span>
+      </div>
+      <div id="wh-result-box">
+        <div class="wh-result-empty">각도를 입력하세요</div>
+      </div>
+    </div>
+    <!-- GT 호기별 영향벡터 기준표 -->
+    <div class="gt-iv-block">
+      <div class="gt-iv-sel-row">
+        <select id="gt-iv-sel" class="gt-iv-select" onchange="gtIVRender()">
+          <option value="GT7">GT#7</option>
+          <option value="GT8">GT#8</option>
+          <option value="GT9">GT#9</option>
+          <option value="GT10">GT#10</option>
+          <option value="GT11">GT#11</option>
+          <option value="GT12">GT#12</option>
+        </select>
+      </div>
+      <div id="gt-iv-body"></div>
+    </div>
+  </div>
+</aside>
 
+<div class="app-shell">
+<div class="main-wrap">
+
+<div class="tab-panel on" id="tab-meas">
+<!-- 베어링 -->
+<!-- 베어링 -->
 <!-- 베어링 -->
 <div class="card no-print">
-  <p class="ctitle">&#9654; 베어링 선택 및 명칭</p>
+  <p class="ctitle">베어링 선택 및 명칭</p>
   <div class="brg-grid" id="brg-grid"></div>
   <p class="hint">카드 클릭 → 활성/비활성 &nbsp;·&nbsp; 명칭 클릭 → 편집</p>
 </div>
@@ -190,7 +542,7 @@ input[type=file]{display:none;}
 <!-- 측정 데이터 -->
 <div class="card no-print">
   <div class="toprow">
-    <p class="ctitle" style="margin:0;">&#9654; 측정 데이터</p>
+    <p class="ctitle" style="margin:0;">측정 데이터</p>
     <div class="si">단위:
       <select id="unit-sel" onchange="saveAuto();renderMeas();renderIV();draw()">
         <option value="um">&mu;m (p-p)</option>
@@ -237,10 +589,13 @@ input[type=file]{display:none;}
   </div>
 </div>
 
+</div><!-- /tab-meas -->
+
+<div class="tab-panel" id="tab-calc">
 <!-- IV + 교정 Weight + 역산 -->
 <div class="card no-print">
   <div class="toprow">
-    <p class="ctitle" style="margin:0;">&#9654; Influence Vector &amp; 교정 Weight</p>
+    <p class="ctitle" style="margin:0;">▸ Influence Vector &amp; 교정 Weight</p>
     <label class="si"><input type="checkbox" id="chk-iv" onchange="saveAuto();draw()"> Polar Sheet 표시</label>
   </div>
   <p class="hint" style="margin-bottom:10px;">
@@ -252,10 +607,13 @@ input[type=file]{display:none;}
   <button class="btn btn-v" onclick="addPlane()">+ Trial Plane 추가</button>
 </div>
 
+</div><!-- /tab-calc -->
+
+<div class="tab-panel" id="tab-polar">
 <!-- Polar Sheet -->
 <div class="card" id="polar-card">
   <div class="toprow no-print">
-    <p class="ctitle" style="margin:0;">&#9654; Polar Sheet &nbsp;<span style="font-size:10px;color:var(--t3);">12시=0°, CCW</span></p>
+    <p class="ctitle" style="margin:0;">Polar Sheet &nbsp;<span style="font-size:10px;color:var(--t3);">12시=0°, CCW</span></p>
     <div style="display:flex;gap:6px;align-items:center;">
       <label class="si"><input type="checkbox" id="chk-sol-polar" onchange="draw()"> 역산 절충안 표시</label>
     </div>
@@ -288,7 +646,7 @@ input[type=file]{display:none;}
     <div class="si"><label><input type="checkbox" id="chk-pred-vec" checked onchange="draw()"> 예상 이동 벡터</label></div>
   </div>
   <div class="polar-brg-filter no-print" id="polar-brg-filter"></div>
-  <canvas id="polar" width="600" height="600"></canvas>
+  <div class="polar-stage"><canvas id="polar" width="600" height="600"></canvas></div>
   <div class="leg no-print" id="legend"></div>
 </div>
 
@@ -315,7 +673,7 @@ var polarBrgFilter={};
 var ivPlanes=[{
   id:1,name:'Trial Plane 1',mode:'auto',
   twWeight:'',twAngle:'0',condBase:'',condTrial:'',useAllBase:false,useAllTrial:false,
-  ivs:{},sharedG:'',
+  ivs:{},ivsManual:{},sharedG:'',manualG:'',
   cwWeight:'',cwAngle:'0',cwBaseCond:'',cwBaseMode:'',useAllBase2:false,ngWeight:'',
   invSelDates:{},invResult:null
 }];
@@ -408,6 +766,11 @@ function updateAlarmUnitLbl(){var u=ul();document.getElementById('alarm-unit-lbl
 /* ── 유틸 ── */
 function dk(bid,ax){return 'b'+bid+'_'+ax;}
 function ivk(bid,ax){return 'b'+bid+'_'+ax;}
+/* 현재 모드에 맞는 IV 맵 반환 (자동/수동 독립) */
+function activeIVs(plane){
+  if(plane.mode==='manual'){if(!plane.ivsManual)plane.ivsManual={};return plane.ivsManual;}
+  if(!plane.ivs)plane.ivs={};return plane.ivs;
+}
 function ul(){var u=document.getElementById('unit-sel').value;return u==='um'?'\u03bcm':u==='mils'?'mils':'mm/s';}
 function fmtDate(d){if(!d)return '날짜 없음';var p=d.split('-');return p.length===3?(p[1]+'/'+p[2]):d;}
 
@@ -462,8 +825,9 @@ function computeIV(plane,bid,ax){
 /* 교정 Weight 예상 진동 */
 function getPredicted(plane,bid,ax,cwW,cwA){
   var key=ivk(bid,ax);
-  if(!plane.ivs||!plane.ivs[key])return null;
-  var iv=plane.ivs[key];
+  var ivmap=activeIVs(plane);
+  if(!ivmap||!ivmap[key])return null;
+  var iv=ivmap[key];
   if(iv.amp===''||iv.phase0==='')return null;
   var alpha0=toRect(iv.amp,iv.phase0);if(!alpha0)return null;
   var C=parseFloat(cwW),phiC=parseFloat(cwA);
@@ -493,7 +857,13 @@ function getBaseVec(plane,bid,ax){
 */
 function computeInverse(plane){
   var ab=bearings.filter(function(b){return b.active;});
-  var selDates=Object.keys(plane.invSelDates||{}).filter(function(d){return plane.invSelDates[d];});
+  /* 현재 실제 존재하는 날짜 목록 */
+  var validDates={};
+  measBefore.concat(measAfter).forEach(function(m){validDates[m.date]=true;});
+  /* 선택된 날짜 중 실제 존재하는 것만 (삭제된 유령 날짜 제외) */
+  var selDates=Object.keys(plane.invSelDates||{}).filter(function(d){return plane.invSelDates[d]&&validDates[d];});
+  /* invSelDates 정리: 존재하지 않는 날짜 키 제거 */
+  Object.keys(plane.invSelDates||{}).forEach(function(d){if(!validDates[d])delete plane.invSelDates[d];});
   if(!selDates.length) return null;
 
   var results={}; /* {brgId_ax: {C_amp, C_phase, A_amp, A_phase}} */
@@ -502,7 +872,7 @@ function computeInverse(plane){
   ab.forEach(function(b){
     ['X','Y'].forEach(function(ax){
       var key=ivk(b.id,ax);
-      var iv=plane.ivs?plane.ivs[key]:null;
+      var iv=activeIVs(plane)[key]||null;
       if(!iv||iv.amp===''||iv.phase0==='')return;
       var alpha0=toRect(iv.amp,iv.phase0);
       if(!alpha0)return;
@@ -960,26 +1330,27 @@ function renderIV(){
 
     /* 공용 Weight + IV 행렬 */
     if(!plane.sharedG)plane.sharedG='';
+    if(!plane.manualG)plane.manualG='';
+    var isManualMode=(plane.mode==='manual');
     var matTitle=document.createElement('p');matTitle.style.cssText='font-size:11px;font-weight:500;color:var(--t2);margin-bottom:6px;';
     var W2=parseFloat(plane.twWeight),wv=!isNaN(W2)&&W2>0;
-    matTitle.innerHTML='베어링별 영향 벡터 \u03b1\u2080 (0\u00b0 기준) &nbsp;<span style="font-size:10px;color:var(--t3);">'+(wv?'['+ul()+'/g]':'['+ul()+']')+'</span>';
+    matTitle.innerHTML='베어링별 영향 벡터 \u03b1\u2080 (0\u00b0 기준) &nbsp;<span style="font-size:10px;color:var(--t3);">['+ul()+'/g]</span>'
+      +(isManualMode?' &nbsp;<span style="font-size:10px;color:var(--tv);">수동 입력 모드 \u00b7 자동 계산과 독립</span>':'');
     body.appendChild(matTitle);
 
+    /* 환산 기준 무게: 자동=sharedG(표시용), 수동=manualG(역산 기준) */
     var sgRow=document.createElement('div');sgRow.className='shared-g-row';
-    var sgLbl=document.createElement('span');sgLbl.textContent='공용 Weight:';sgLbl.style.fontWeight='500';
+    var curG=isManualMode?plane.manualG:plane.sharedG;
+    var sgLbl=document.createElement('span');sgLbl.textContent=isManualMode?'환산 기준 Weight:':'공용 Weight:';sgLbl.style.fontWeight='500';
     var sgInp=document.createElement('input');sgInp.type='number';sgInp.className='inp-nm';sgInp.style.cssText='width:70px;text-align:right;background:var(--card);';
-    sgInp.value=plane.sharedG;sgInp.placeholder='g';sgInp.min='0';
+    sgInp.value=curG;sgInp.placeholder='g';sgInp.min='0';
     sgInp.addEventListener('input',function(){
-      plane.sharedG=this.value;
-      matDiv.querySelectorAll('.conv-cell').forEach(function(cell){
-        var a=parseFloat(cell.getAttribute('data-amp'));var g=parseFloat(plane.sharedG);
-        if(!isNaN(a)&&a>0&&!isNaN(g)&&g>0){cell.innerHTML='<span style="font-weight:600;color:var(--tw);">'+(a*g).toFixed(2)+'</span> <span style="font-size:10px;color:var(--t3);">'+ul()+'</span>';}
-        else{cell.textContent='—';}
-      });
-      saveAuto();
+      if(isManualMode){plane.manualG=this.value;}else{plane.sharedG=this.value;}
+      renderIV();draw();saveAuto();
     });
     sgRow.appendChild(sgLbl);sgRow.appendChild(sgInp);sgRow.appendChild(mkL('g'));
-    var sgHint=document.createElement('span');sgHint.style.cssText='font-size:10px;color:var(--tw);opacity:.8;';sgHint.textContent='입력 시 모든 베어링 α₀×g 즉시 환산';
+    var sgHint=document.createElement('span');sgHint.style.cssText='font-size:10px;color:var(--tw);opacity:.85;';
+    sgHint.textContent=isManualMode?'이 무게 기준 "α₀×g 환산"값을 입력하면 α₀ 크기가 자동 역산됩니다':'입력 시 모든 베어링 α₀×g 즉시 환산';
     sgRow.appendChild(sgHint);body.appendChild(sgRow);
 
     var matDiv=document.createElement('div');matDiv.className='iv-matrix';
@@ -990,11 +1361,13 @@ function renderIV(){
     });
     ivHead.appendChild(ivHr);ivTbl.appendChild(ivHead);
     var ivBody=document.createElement('tbody');
+    var IVMAP=activeIVs(plane);
+    var convG=isManualMode?parseFloat(plane.manualG):parseFloat(plane.sharedG);
     ab.forEach(function(b){
       ['X','Y'].forEach(function(ax,axi){
         var key=ivk(b.id,ax);
-        if(!plane.ivs[key])plane.ivs[key]={amp:'',phase0:'',ampRaw:'',phaseRaw:'',src:'manual'};
-        var iv=plane.ivs[key];var isAuto=iv.src==='auto';
+        if(!IVMAP[key])IVMAP[key]={amp:'',phase0:'',ampRaw:'',phaseRaw:'',src:isManualMode?'manual':'manual'};
+        var iv=IVMAP[key];var isAuto=(iv.src==='auto')&&!isManualMode;
         var tr=document.createElement('tr');if(axi===0)tr.style.borderTop='0.5px solid var(--b)';
         if(axi===0){
           var tdN=document.createElement('td');tdN.rowSpan=2;tdN.style.cssText='vertical-align:middle;';
@@ -1003,25 +1376,43 @@ function renderIV(){
           nw.appendChild(dd);nw.appendChild(document.createTextNode(b.name));tdN.appendChild(nw);tr.appendChild(tdN);
         }
         var tdAx=document.createElement('td');var axBdg=document.createElement('span');axBdg.className='ax-badge '+(ax==='X'?'ax-x':'ax-y');axBdg.textContent=ax;tdAx.appendChild(axBdg);tr.appendChild(tdAx);
+
+        /* α₀ 크기 (수동모드에서 환산 입력 시 자동 역산되므로 읽기쉽게 표시) */
         var tdAmp=document.createElement('td');tdAmp.style.textAlign='center';
-        var aI=document.createElement('input');aI.type='number';aI.className='iv-inp '+(isAuto?'auto-val':'manual-val');aI.value=iv.amp;aI.placeholder='크기';aI.min='0';
-        aI.addEventListener('change',function(){iv.amp=this.value;iv.src='manual';this.className='iv-inp manual-val';
-          var cc=this.parentNode.nextSibling;if(cc){var g2=parseFloat(plane.sharedG);var a2=parseFloat(iv.amp);cc.setAttribute('data-amp',iv.amp);if(!isNaN(a2)&&a2>0&&!isNaN(g2)&&g2>0){cc.innerHTML='<span style="font-weight:600;color:var(--tw);">'+(a2*g2).toFixed(2)+'</span> <span style="font-size:10px;color:var(--t3);">'+ul()+'</span>';}else cc.textContent='—';}
-          renderIV();draw();saveAuto();
-        });
+        var aI=document.createElement('input');aI.type='number';aI.className='iv-inp '+(isAuto?'auto-val':'manual-val');aI.value=iv.amp;aI.placeholder='크기';aI.min='0';aI.step='0.0001';
+        aI.addEventListener('change',function(){iv.amp=this.value;if(!isManualMode)iv.src='manual';this.className='iv-inp manual-val';renderIV();draw();saveAuto();});
         tdAmp.appendChild(aI);tr.appendChild(tdAmp);
-        var tdConv=document.createElement('td');tdConv.className='conv-cell';tdConv.style.textAlign='center';tdConv.setAttribute('data-amp',iv.amp);
-        var a0v=parseFloat(iv.amp),sg=parseFloat(plane.sharedG);
-        if(!isNaN(a0v)&&a0v>0&&!isNaN(sg)&&sg>0){tdConv.innerHTML='<span style="font-weight:600;color:var(--tw);">'+(a0v*sg).toFixed(2)+'</span> <span style="font-size:10px;color:var(--t3);">'+ul()+'</span>';}
-        else{tdConv.textContent='—';tdConv.style.color='var(--t3)';}
+
+        /* α₀×g 환산: 자동모드=계산표시 / 수동모드=입력가능(→amp 역산) */
+        var tdConv=document.createElement('td');tdConv.style.textAlign='center';tdConv.className='conv-cell';tdConv.setAttribute('data-amp',iv.amp);
+        if(isManualMode){
+          var cvI=document.createElement('input');cvI.type='number';cvI.className='iv-inp manual-val';cvI.placeholder=ul();cvI.min='0';cvI.step='0.01';cvI.style.borderColor='var(--tw)';
+          var a0c=parseFloat(iv.amp);
+          if(!isNaN(a0c)&&a0c>0&&!isNaN(convG)&&convG>0)cvI.value=(a0c*convG).toFixed(2);
+          else cvI.value='';
+          cvI.addEventListener('change',function(){
+            var cval=parseFloat(this.value);var g=parseFloat(plane.manualG);
+            if(!isNaN(cval)&&!isNaN(g)&&g>0){iv.amp=(cval/g).toFixed(4);}
+            else if(this.value===''){iv.amp='';}
+            iv.src='manual';renderIV();draw();saveAuto();
+          });
+          tdConv.appendChild(cvI);
+        } else {
+          var a0v=parseFloat(iv.amp),sg=parseFloat(plane.sharedG);
+          if(!isNaN(a0v)&&a0v>0&&!isNaN(sg)&&sg>0){tdConv.innerHTML='<span style="font-weight:600;color:var(--tw);">'+(a0v*sg).toFixed(2)+'</span> <span style="font-size:10px;color:var(--t3);">'+ul()+'</span>';}
+          else{tdConv.textContent='—';tdConv.style.color='var(--t3)';}
+        }
         tr.appendChild(tdConv);
+
+        /* 위상 */
         var tdPh=document.createElement('td');tdPh.style.textAlign='center';
         var phI=document.createElement('input');phI.type='number';phI.className='iv-inp '+(isAuto?'auto-val':'manual-val');phI.value=iv.phase0;phI.placeholder='0°기준';phI.min='0';phI.max='359';
-        phI.addEventListener('change',function(){iv.phase0=this.value;iv.src='manual';this.className='iv-inp manual-val';renderIV();draw();saveAuto();});
+        phI.addEventListener('change',function(){iv.phase0=this.value;if(!isManualMode)iv.src='manual';this.className='iv-inp manual-val';renderIV();draw();saveAuto();});
         tdPh.appendChild(phI);tr.appendChild(tdPh);
+
         var tdRaw=document.createElement('td');tdRaw.style.cssText='text-align:center;color:var(--t3);font-size:10px;';tdRaw.textContent=isAuto?(iv.phaseRaw?iv.phaseRaw+'°':'—'):'—';tr.appendChild(tdRaw);
         var tdSt=document.createElement('td');tdSt.style.textAlign='center';
-        var pill=document.createElement('span');pill.className='pill '+(isAuto?'pill-g':'pill-v');pill.textContent=isAuto?'자동':'수동';tdSt.appendChild(pill);tr.appendChild(tdSt);
+        var pill=document.createElement('span');pill.className='pill '+(isAuto?'pill-g':'pill-v');pill.textContent=isManualMode?'수동':(isAuto?'자동':'수동');tdSt.appendChild(pill);tr.appendChild(tdSt);
         ivBody.appendChild(tr);
       });
     });
@@ -1195,7 +1586,7 @@ function renderInvResult(plane,box){
 }
 
 function addPlane(){
-  ivPlanes.push({id:nextPlaneId++,name:'Trial Plane '+nextPlaneId,mode:'auto',twWeight:'',twAngle:'0',condBase:'',condTrial:'',useAllBase:false,useAllTrial:false,ivs:{},sharedG:'',cwWeight:'',cwAngle:'0',cwBaseCond:'',cwBaseMode:'',useAllBase2:false,ngWeight:'',invSelDates:{},invResult:null});
+  ivPlanes.push({id:nextPlaneId++,name:'Trial Plane '+nextPlaneId,mode:'auto',twWeight:'',twAngle:'0',condBase:'',condTrial:'',useAllBase:false,useAllTrial:false,ivs:{},ivsManual:{},sharedG:'',manualG:'',cwWeight:'',cwAngle:'0',cwBaseCond:'',cwBaseMode:'',useAllBase2:false,ngWeight:'',invSelDates:{},invResult:null});
   renderIV();saveAuto();
 }
 
@@ -1228,59 +1619,96 @@ function draw(){
   var W=cv.width,H=cv.height,cx=W/2,cy=H/2;
   var smax=parseFloat(document.getElementById('scale-max').value)||120;
   var R=Math.min(cx,cy)-68;
-  var dark=window.matchMedia('(prefers-color-scheme:dark)').matches;
-  var gc=dark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.06)';
-  var ac=dark?'rgba(255,255,255,0.15)':'rgba(0,0,0,0.13)';
-  var tc=dark?'rgba(255,255,255,0.45)':'rgba(0,0,0,0.4)';
-  var bg=dark?'#1e1e1c':'#fff';
+  var dark=false;
+  var gc='rgba(0,0,0,0.06)';
+  var ac='rgba(0,0,0,0.12)';
+  var tc='rgba(0,0,0,0.4)';
+  var bg='#fff';
   var unit=ul();
   ctx.clearRect(0,0,W,H);ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
 
-  /* ── Alarm / Trip 기준선 ── */
+  /* ══ 격자: 미세 보조원 + 메인 동심원 ══ */
+  /* 차트 영역 미묘한 배경 원 */
+  var bgGrad=ctx.createRadialGradient(cx,cy,0,cx,cy,R);
+  bgGrad.addColorStop(0,'#fdfdfe');bgGrad.addColorStop(1,'#f7f8fa');
+  ctx.beginPath();ctx.arc(cx,cy,R,0,2*Math.PI);ctx.fillStyle=bgGrad;ctx.fill();
+
+  /* 보조 미세원 (10등분, 점선) */
+  for(var j=1;j<=10;j++){
+    if(j%2===0)continue; /* 홀수만: 메인 사이사이 */
+    var rr=R*j/10;
+    ctx.beginPath();ctx.arc(cx,cy,rr,0,2*Math.PI);
+    ctx.strokeStyle='rgba(100,116,139,0.07)';ctx.lineWidth=0.5;
+    ctx.setLineDash([2,3]);ctx.stroke();ctx.setLineDash([]);
+  }
+  /* 메인 동심원 (5등분) */
+  for(var i=1;i<=5;i++){
+    var r=R*i/5;ctx.beginPath();ctx.arc(cx,cy,r,0,2*Math.PI);
+    ctx.strokeStyle=i===5?'rgba(71,85,105,0.28)':'rgba(100,116,139,0.13)';
+    ctx.lineWidth=i===5?1.2:0.6;ctx.stroke();
+    /* 눈금 라벨: 박스 배경 */
+    var lblTxt=Math.round(smax*i/5)+' '+unit;
+    ctx.font="500 9.5px Inter,sans-serif";
+    var lblW=ctx.measureText(lblTxt).width;
+    var lblX=(i===5)?(cx+r-lblW-10):(cx+r+3); /* 마지막 라벨은 원 안쪽 */
+    ctx.fillStyle='rgba(255,255,255,0.85)';
+    ctx.fillRect(lblX,cy-11,lblW+6,12);
+    ctx.fillStyle='rgba(100,116,139,0.75)';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(lblTxt,lblX+3,cy-5);
+  }
+  /* 방사선 (15° 보조 + 30° 메인) */
+  for(var deg=0;deg<360;deg+=15){
+    var isMain=deg%30===0,isAxis=deg%90===0;
+    var ep=ptOn(cx,cy,R,deg);
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(ep.px,ep.py);
+    if(isAxis){ctx.strokeStyle='rgba(71,85,105,0.22)';ctx.lineWidth=0.9;}
+    else if(isMain){ctx.strokeStyle='rgba(100,116,139,0.11)';ctx.lineWidth=0.5;}
+    else{ctx.strokeStyle='rgba(100,116,139,0.05)';ctx.lineWidth=0.4;}
+    ctx.stroke();
+    if(isMain){
+      var lp=ptOn(cx,cy,R+30,deg);
+      ctx.fillStyle=isAxis?'rgba(51,65,85,0.85)':'rgba(100,116,139,0.6)';
+      ctx.font=isAxis?"600 11px Inter,sans-serif":"500 9.5px Inter,sans-serif";
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(deg+'\u00b0',lp.px,lp.py);
+    }
+  }
+  /* 중심점 */
+  ctx.beginPath();ctx.arc(cx,cy,2.2,0,2*Math.PI);ctx.fillStyle='rgba(71,85,105,0.5)';ctx.fill();
+  ctx.beginPath();ctx.arc(cx,cy,5,0,2*Math.PI);ctx.strokeStyle='rgba(71,85,105,0.18)';ctx.lineWidth=0.8;ctx.stroke();
+  /* 0° 방향 표시 */
+  ctx.fillStyle='rgba(51,65,85,0.9)';ctx.font="600 10px Inter,sans-serif";ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillText('0\u00b0 \u00b7 12\uc2dc \u00b7 CCW',cx,cy-R-36);
+
+  /* ── Alarm / Trip 기준선 (격자 위에 그려야 보임) ── */
   var alarmVal=parseFloat(document.getElementById('alarm-val').value);
   var tripVal=parseFloat(document.getElementById('trip-val').value);
   if(!isNaN(alarmVal)&&alarmVal>0){
-    var ar=Math.min(alarmVal/smax,2)*R;
+    var ar=Math.min(alarmVal/smax,1)*R;
     ctx.beginPath();ctx.arc(cx,cy,ar,0,2*Math.PI);
     ctx.strokeStyle='#e6a817';ctx.lineWidth=1.8;ctx.setLineDash([8,5]);ctx.stroke();ctx.setLineDash([]);
     var alTxt='ALARM '+alarmVal+unit;
-    ctx.font='500 10px sans-serif';
+    ctx.font='600 10px Inter,sans-serif';
     var alW=ctx.measureText(alTxt).width;
     var alX=cx+ar*0.707+6,alY=cy-ar*0.707-6;
-    ctx.fillStyle=dark?'rgba(30,30,28,0.82)':'rgba(255,255,255,0.88)';
-    ctx.fillRect(alX-2,alY-6,alW+6,13);
-    ctx.fillStyle='#e6a817';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(255,255,255,0.95)';
+    ctx.fillRect(alX-3,alY-7,alW+8,14);
+    ctx.fillStyle='#c2710a';ctx.textAlign='left';ctx.textBaseline='middle';
     ctx.fillText(alTxt,alX,alY);
   }
   if(!isNaN(tripVal)&&tripVal>0){
-    var tr2=Math.min(tripVal/smax,2)*R;
+    var tr2=Math.min(tripVal/smax,1)*R;
     ctx.beginPath();ctx.arc(cx,cy,tr2,0,2*Math.PI);
     ctx.strokeStyle='#d42f2f';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.stroke();ctx.setLineDash([]);
     var trTxt='TRIP '+tripVal+unit;
-    ctx.font='500 10px sans-serif';
+    ctx.font='600 10px Inter,sans-serif';
     var trW=ctx.measureText(trTxt).width;
     var trX=cx+tr2*0.707+6,trY=cy-tr2*0.707+10;
-    ctx.fillStyle=dark?'rgba(30,30,28,0.82)':'rgba(255,255,255,0.88)';
-    ctx.fillRect(trX-2,trY-6,trW+6,13);
+    ctx.fillStyle='rgba(255,255,255,0.95)';
+    ctx.fillRect(trX-3,trY-7,trW+8,14);
     ctx.fillStyle='#d42f2f';ctx.textAlign='left';ctx.textBaseline='middle';
     ctx.fillText(trTxt,trX,trY);
   }
-
-  /* 동심원 */
-  for(var i=1;i<=5;i++){
-    var r=R*i/5;ctx.beginPath();ctx.arc(cx,cy,r,0,2*Math.PI);
-    ctx.strokeStyle=i===5?ac:gc;ctx.lineWidth=i===5?1:0.5;ctx.stroke();
-    ctx.fillStyle=tc;ctx.font='10px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
-    ctx.fillText(Math.round(smax*i/5)+' '+unit,cx+r+4,cy-4);
-  }
-  for(var deg=0;deg<360;deg+=30){
-    var ep=ptOn(cx,cy,R,deg);ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(ep.px,ep.py);
-    ctx.strokeStyle=deg%90===0?ac:gc;ctx.lineWidth=deg%90===0?.8:.4;ctx.stroke();
-    var lp=ptOn(cx,cy,R+34,deg);ctx.fillStyle=tc;ctx.font=deg%90===0?'500 11px sans-serif':'10px sans-serif';
-    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(deg+'\u00b0',lp.px,lp.py);
-  }
-  ctx.fillStyle=tc;ctx.font='500 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
-  ctx.fillText('0\u00b0 (12\uc2dc CCW)',cx,cy-R-38);
 
   /* 캔버스 상단 범례 */
   (function(){
@@ -1294,10 +1722,14 @@ function draw(){
       {sym:'alarm', label:'Alarm/Trip 기준선'},
       {sym:'sol',   label:'역산 절충안'},
     ];
-    var boxW=175,boxH=lh*items.length+10;
-    ctx.fillStyle=dark?'rgba(30,30,28,0.88)':'rgba(255,255,255,0.88)';
-    ctx.strokeStyle=dark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.1)';ctx.lineWidth=0.5;
-    ctx.beginPath();ctx.roundRect(lx-4,ly-6,boxW,boxH,6);ctx.fill();ctx.stroke();
+    var boxW=178,boxH=lh*items.length+12;
+    ctx.save();
+    ctx.shadowColor='rgba(16,24,40,0.08)';ctx.shadowBlur=8;ctx.shadowOffsetY=2;
+    ctx.fillStyle='rgba(255,255,255,0.97)';
+    ctx.beginPath();ctx.roundRect(lx-4,ly-7,boxW,boxH,8);ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle='rgba(100,116,139,0.18)';ctx.lineWidth=0.8;
+    ctx.beginPath();ctx.roundRect(lx-4,ly-7,boxW,boxH,8);ctx.stroke();
     items.forEach(function(item,i){
       var y=ly+i*lh,sx2=lx+8;
       if(item.sym==='dot-bf'){ctx.beginPath();ctx.arc(sx2,y,2,0,2*Math.PI);ctx.fillStyle='#378ADD';ctx.fill();}
@@ -1307,7 +1739,7 @@ function draw(){
       else if(item.sym==='arrow'){ctx.strokeStyle='#378ADDcc';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(sx2-5,y);ctx.lineTo(sx2+5,y);ctx.stroke();ctx.beginPath();ctx.moveTo(sx2+5,y);ctx.lineTo(sx2+2,y-2.5);ctx.lineTo(sx2+2,y+2.5);ctx.closePath();ctx.fillStyle='#378ADDcc';ctx.fill();}
       else if(item.sym==='alarm'){ctx.strokeStyle='#e6a817';ctx.lineWidth=1.2;ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(sx2-5,y);ctx.lineTo(sx2+5,y);ctx.stroke();ctx.setLineDash([]);ctx.strokeStyle='#d42f2f';ctx.lineWidth=1.2;ctx.setLineDash([3,2]);ctx.beginPath();ctx.moveTo(sx2-5,y+3);ctx.lineTo(sx2+5,y+3);ctx.stroke();ctx.setLineDash([]);}
       else if(item.sym==='sol'){ctx.beginPath();ctx.arc(sx2,y,4,0,2*Math.PI);ctx.strokeStyle=SOL_COLOR;ctx.lineWidth=2;ctx.stroke();ctx.beginPath();ctx.moveTo(sx2-2.5,y);ctx.lineTo(sx2+2.5,y);ctx.moveTo(sx2,y-2.5);ctx.lineTo(sx2,y+2.5);ctx.strokeStyle=SOL_COLOR;ctx.lineWidth=1.5;ctx.stroke();}
-      ctx.fillStyle=dark?'rgba(255,255,255,0.75)':'rgba(0,0,0,0.6)';ctx.font='10px sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+      ctx.fillStyle='rgba(0,0,0,0.6)';ctx.font='10px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
       ctx.fillText(item.label,sx2+12,i===6?y+1.5:y);
     });
   })();
@@ -1341,9 +1773,12 @@ function draw(){
 
     bfPts.concat(afPts).forEach(function(p){
       var isBefore=bfPts.indexOf(p)>=0;
-      ctx.beginPath();ctx.arc(p.px,p.py,isBefore?1:0.8,0,2*Math.PI);
+      /* 마커: 흰 외곽선 + 본체 */
+      ctx.beginPath();ctx.arc(p.px,p.py,isBefore?3.2:2.6,0,2*Math.PI);
+      ctx.fillStyle='#fff';ctx.fill();
+      ctx.beginPath();ctx.arc(p.px,p.py,isBefore?2.2:1.7,0,2*Math.PI);
       ctx.fillStyle=isBefore?color:color+'cc';ctx.fill();
-      if(!isBefore){ctx.beginPath();ctx.arc(p.px,p.py,3.5,0,2*Math.PI);ctx.strokeStyle=color+'55';ctx.lineWidth=0.6;ctx.setLineDash([2,2]);ctx.stroke();ctx.setLineDash([]);}
+      if(!isBefore){ctx.beginPath();ctx.arc(p.px,p.py,5,0,2*Math.PI);ctx.strokeStyle=color+'66';ctx.lineWidth=0.8;ctx.setLineDash([2,2]);ctx.stroke();ctx.setLineDash([]);}
       if(showLbl&&p.date){
         /* 방사형 배치: CCW 기준 px=cx-r×sin, offset도 -sinV 방향 */
         var sinV=Math.sin(p.phase*Math.PI/180),cosV=Math.cos(p.phase*Math.PI/180);
@@ -1351,14 +1786,14 @@ function draw(){
         var ox=-sinV*dist, oy=-cosV*dist;
         var lx=p.px+ox, ly=p.py+oy;
         var txt=fmtDate(p.date);
-        ctx.font='7px sans-serif';
+        ctx.font='7px Inter,sans-serif';
         var tw=ctx.measureText(txt).width;
         var align=sinV<-0.2?'left':sinV>0.2?'right':'center';
         var baseline=cosV>0.3?'bottom':cosV<-0.3?'top':'middle';
         var bx=align==='left'?lx-1:align==='right'?lx-tw-1:lx-tw/2-1;
         var by=baseline==='bottom'?ly-8:baseline==='top'?ly:ly-4;
         /* 배경 박스 */
-        ctx.fillStyle=dark?'rgba(30,30,28,0.72)':'rgba(255,255,255,0.78)';
+        ctx.fillStyle='rgba(255,255,255,0.88)';
         ctx.fillRect(bx-1,by-1,tw+4,10);
         /* 텍스트 */
         ctx.fillStyle=color;
@@ -1371,16 +1806,16 @@ function draw(){
       if(!avg)return null;
       var ratio=Math.min(avg.amp/smax,1.05);var pt=ptOn(cx,cy,ratio*R,avg.phase);var mc=isBefore?AVG_BF:AVG_AF;
       ctx.save();ctx.translate(pt.px,pt.py);ctx.rotate(Math.PI/4);ctx.beginPath();ctx.rect(-7,-7,14,14);ctx.fillStyle=mc+'33';ctx.fill();ctx.strokeStyle=mc;ctx.lineWidth=2.5;ctx.stroke();ctx.restore();
-      ctx.fillStyle=mc;ctx.font='500 8px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,pt.px,pt.py);
+      ctx.fillStyle=mc;ctx.font='500 8px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,pt.px,pt.py);
       if(showLbl){
         /* CCW 기준: px=cx-r×sin → 레이블 -sinV 방향 */
         var sinV2=Math.sin(avg.phase*Math.PI/180);
         var lbl2=(isBefore?'B\u0305':'A\u0305')+' #'+(b.id+1)+' '+ax;
         var lx2=pt.px+(-sinV2>0?18:-18);
         var ly2=pt.py+(avg.phase<180?-14:14);
-        ctx.font='500 9px sans-serif';
+        ctx.font='500 9px Inter,sans-serif';
         var tw2=ctx.measureText(lbl2).width;
-        ctx.fillStyle=dark?'rgba(30,30,28,0.75)':'rgba(255,255,255,0.82)';
+        ctx.fillStyle='rgba(255,255,255,0.9)';
         var bx2=-sinV2>0?lx2-1:lx2-tw2-1;
         ctx.fillRect(bx2-1,ly2-5,tw2+4,11);
         ctx.fillStyle=mc;
@@ -1423,7 +1858,7 @@ function draw(){
         var res=computeInverse(plane);
         if(!res)return;
 
-        var iv=plane.ivs?plane.ivs[ivk(b.id,ax)]:null;
+        var iv=activeIVs(plane)[ivk(b.id,ax)]||null;
         if(!iv||iv.amp===''||iv.phase0==='')return;
         var alpha0=toRect(iv.amp,iv.phase0);   /* α₀ 복소수 */
         if(!alpha0)return;
@@ -1472,7 +1907,7 @@ function draw(){
         /* 레이블: 베어링명+날짜만 (CCW: -sinV 방향) */
         if(showLbl&&APolar.amp>0){
           var sinV=Math.sin(predSol.phase*Math.PI/180);
-          ctx.fillStyle=SOL_COLOR;ctx.font='500 9px sans-serif';
+          ctx.fillStyle=SOL_COLOR;ctx.font='500 9px Inter,sans-serif';
           ctx.textAlign=-sinV>0?'left':'right';ctx.textBaseline='middle';
           ctx.fillText('\u26B6#'+(b.id+1)+' '+ax,predPt.px+(-sinV>0?8:-8),predPt.py);
         }
@@ -1501,6 +1936,585 @@ function draw(){
   renderAll();
   document.getElementById('unit-sel').addEventListener('change',function(){updateScaleUnitLbl();updateAlarmUnitLbl();});
 })();
+
+
+/* ═══════════════════════════════════════════════════
+   복합 3,4호기 Weight Hole 위치 산출
+   - 홀 40개, 9° 간격
+   - 0°=1번, 9°=40번, 18°=39번 ... 351°=2번 (역방향)
+═══════════════════════════════════════════════════ */
+function holeFromDeg(deg){
+  deg = ((deg % 360) + 360) % 360;       /* 0~360 정규화 */
+  var n = Math.round(deg / 9) % 40;       /* 9° 간격 인덱스 0~39 (반올림) */
+  return ((40 - n) % 40) + 1;             /* 1~40번 */
+}
+function degFromHole(hole){
+  /* 홀 번호 → 대표 각도 (역함수) */
+  var n = (40 - (hole - 1)) % 40;
+  return (n * 9) % 360;
+}
+function whCalc(){
+  var el = document.getElementById('wh-deg');
+  var box = document.getElementById('wh-result-box');
+  if(!el || !box) return;
+  var v = el.value;
+  if(v === '' || isNaN(parseFloat(v))){
+    box.innerHTML = '<div class="wh-result-empty">각도를 입력하세요</div>';
+    whHighlight(null);
+    return;
+  }
+  var deg = parseFloat(v);
+  var hole = holeFromDeg(deg);
+  var snapDeg = degFromHole(hole);
+  box.innerHTML =
+    '<div class="wh-result">'+
+    '<span class="wh-result-num">'+hole+'</span>'+
+    '<span class="wh-result-label">번 홀<br><span style="font-size:10px;color:var(--t3);font-weight:400;">(홀 중심 '+snapDeg+'°)</span></span>'+
+    '</div>';
+  whHighlight(hole);
+}
+function whHighlight(hole){ /* 대응표 제거됨 — no-op */ }
+
+/* ═══════════════════════════════════════════════════
+   GT 호기별 영향벡터 기준표 (#1,#2 BRG × X,Y)
+   - GT#7~12 중 선택, 선택 호기의 위상/크기 입력·저장
+═══════════════════════════════════════════════════ */
+var GT_IV_KEY = 'gt_iv_ref_v1';
+var gtIVData = {};   /* {GT7: {b1x_ph:'',b1x_amp:'', ...}, note:''} */
+
+function gtIVLoad(){
+  try{ var s=localStorage.getItem(GT_IV_KEY); if(s) gtIVData=JSON.parse(s); }catch(e){}
+}
+function gtIVSave(){ localStorage.setItem(GT_IV_KEY, JSON.stringify(gtIVData)); }
+
+function gtIVRender(){
+  var sel = document.getElementById('gt-iv-sel');
+  var bodyEl = document.getElementById('gt-iv-body');
+  if(!sel || !bodyEl) return;
+  var gt = sel.value;
+  var label = gt.replace('GT','GT#');
+  if(!gtIVData[gt]) gtIVData[gt] = {};
+  var d = gtIVData[gt];
+
+  /* 행 정의: #1 BRG X/Y, #2 BRG X/Y */
+  var rows = [
+    {key:'b1x', lbl:"#1 BRG 'X'"},
+    {key:'b1y', lbl:"#1 BRG 'Y'"},
+    {key:'b2x', lbl:"#2 BRG 'X'"},
+    {key:'b2y', lbl:"#2 BRG 'Y'"},
+  ];
+
+  var html =
+    '<div class="gt-iv-heading">'+label+' 영향벡터</div>'+
+    '<div class="gt-iv-cond">(#1 BRG 0도, 275g 부착 기준)</div>'+
+    '<table class="gt-iv-tbl"><thead><tr>'+
+    '<th>베어링</th><th>위상(°)</th><th>크기(mils)</th></tr></thead><tbody>';
+
+  rows.forEach(function(r){
+    var phVal = d[r.key+'_ph'] || '';
+    var amVal = d[r.key+'_amp'] || '';
+    html +=
+      '<tr>'+
+      '<td class="brg-lbl">'+r.lbl+'</td>'+
+      '<td><input class="gt-iv-inp" data-k="'+r.key+'_ph" value="'+phVal+'" placeholder="" oninput="gtIVChange(this)"></td>'+
+      '<td><input class="gt-iv-inp" data-k="'+r.key+'_amp" value="'+amVal+'" placeholder="" oninput="gtIVChange(this)"></td>'+
+      '</tr>';
+  });
+  html += '</tbody></table>';
+
+  /* 비고 */
+  html +=
+    '<div class="gt-iv-note-label">비고</div>'+
+    '<textarea class="gt-iv-note" id="gt-iv-note" placeholder="특이사항 메모..." oninput="gtIVNoteChange()">'+(d.note||'')+'</textarea>';
+
+  bodyEl.innerHTML = html;
+}
+
+function gtIVChange(inp){
+  var sel = document.getElementById('gt-iv-sel');
+  var gt = sel.value;
+  if(!gtIVData[gt]) gtIVData[gt] = {};
+  gtIVData[gt][inp.getAttribute('data-k')] = inp.value;
+  gtIVSave();
+}
+function gtIVNoteChange(){
+  var sel = document.getElementById('gt-iv-sel');
+  var ta = document.getElementById('gt-iv-note');
+  var gt = sel.value;
+  if(!gtIVData[gt]) gtIVData[gt] = {};
+  gtIVData[gt].note = ta.value;
+  gtIVSave();
+}
+setTimeout(function(){ gtIVLoad(); gtIVRender(); }, 0);
+
+var ADRE_KEY  = 'adre_loc_v3';
+var ADRE_NOTE_KEY = 'adre_note_v1';
+var WT_KEY    = 'wt_pos_v1';
+var RP_TOG_KEY = 'rp_toggle_v1';
+
+var ADRE_DEVICES = [
+  {id:0, name:'ADRE #1'},
+  {id:1, name:'ADRE #2'},
+  {id:2, name:'ADRE #3'},
+  {id:3, name:'ADRE #4'},
+];
+var ADRE_COLORS = ['#2563eb','#059669','#d97706','#7c3aed'];
+var adreSelected = 0;
+var adreLocations = {};
+var wtData = {};
+
+/* ── 패널 토글 ── */
+function rpToggle(sectId, show, togId){
+  var el = document.getElementById(sectId);
+  if(el) el.style.display = show ? '' : 'none';
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(RP_TOG_KEY)||'{}'); } catch(e){}
+  saved[togId] = show;
+  localStorage.setItem(RP_TOG_KEY, JSON.stringify(saved));
+}
+function rpToggleInit(){
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(RP_TOG_KEY)||'{}'); } catch(e){}
+  ['tog-adre','tog-wt'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(!el) return;
+    var sectId = id === 'tog-adre' ? 'adre-sect' : 'wt-sect';
+    var show = saved[id] !== undefined ? saved[id] : true;
+    el.checked = show;
+    var sect = document.getElementById(sectId);
+    if(sect) sect.style.display = show ? '' : 'none';
+  });
+}
+
+/* ── ADRE 저장/로드 ── */
+function adreLoad(){
+  try{ var s=localStorage.getItem(ADRE_KEY); if(s) adreLocations=JSON.parse(s); }catch(e){}
+  var note = localStorage.getItem(ADRE_NOTE_KEY)||'';
+  var ta = document.getElementById('adre-note');
+  if(ta) ta.value = note;
+  adreRender();
+}
+function adreSave(){
+  localStorage.setItem(ADRE_KEY, JSON.stringify(adreLocations));
+  var d=new Date(), t=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+  var el=document.getElementById('adre-updated');
+  if(el) el.textContent = '업데이트 '+t;
+}
+function adreSaveNote(){
+  var ta=document.getElementById('adre-note');
+  if(ta) localStorage.setItem(ADRE_NOTE_KEY, ta.value);
+}
+
+/* ── ADRE 인터랙션 ── */
+function adreClick(uid){
+  if(adreLocations[uid]===adreSelected){ delete adreLocations[uid]; }
+  else { adreLocations[uid]=adreSelected; }
+  adreSave(); adreRender();
+}
+function adreSelectDevice(idx){ adreSelected=idx; adreRender(); }
+function adreReset(){
+  if(!confirm('ADRE 위치 정보를 초기화하시겠습니까?')) return;
+  adreLocations={}; adreSave(); adreRender();
+}
+
+/* ── ADRE 렌더 ── */
+function adreRender(){
+  /* 칩 */
+  var chipList=document.getElementById('adre-chip-list');
+  if(chipList){
+    chipList.innerHTML='';
+    ADRE_DEVICES.forEach(function(dev){
+      var assigned=Object.keys(adreLocations).filter(function(k){return adreLocations[k]===dev.id;});
+      var chip=document.createElement('div');
+      chip.className='adre-dev-chip adre-border'+dev.id+(adreSelected===dev.id?' selected':'');
+      chip.innerHTML='<span class="chip-dot"></span><span>'+dev.name+(assigned.length?' ('+assigned.length+')':'')+'</span>';
+      chip.onclick=function(){adreSelectDevice(dev.id);};
+      chipList.appendChild(chip);
+    });
+  }
+  /* 유닛 셀 */
+  document.querySelectorAll('.unit-cell').forEach(function(cell){
+    var uid=cell.getAttribute('data-uid');
+    var devIdx=adreLocations[uid];
+    cell.className='unit-cell';
+    cell.style.outline=''; cell.style.outlineOffset='';
+    cell.removeAttribute('data-tip');
+    if(devIdx!==undefined){
+      cell.classList.add('occupied','adre-c'+devIdx);
+      cell.setAttribute('data-tip', ADRE_DEVICES[devIdx].name+' 배치 중');
+      if(devIdx===adreSelected){
+        cell.style.outline='2px solid '+ADRE_COLORS[devIdx];
+        cell.style.outlineOffset='2px';
+      }
+    }
+  });
+  /* 요약 */
+  var sum=document.getElementById('adre-summary');
+  if(sum){
+    sum.innerHTML=ADRE_DEVICES.map(function(dev){
+      var units=Object.keys(adreLocations).filter(function(k){return adreLocations[k]===dev.id;});
+      return '<div class="adre-summary-row">'+
+        '<span style="display:flex;align-items:center;gap:5px;">'+
+        '<span style="width:8px;height:8px;border-radius:2px;background:'+ADRE_COLORS[dev.id]+';display:inline-block;flex-shrink:0;"></span>'+
+        dev.name+'</span>'+
+        '<strong>'+(units.length?units.join(', '):'대기 중')+'</strong></div>';
+    }).join('');
+  }
+}
+
+/* ── Weight 장착 위치 ── */
+function wtLoad(){
+  try{ var s=localStorage.getItem(WT_KEY); if(s) wtData=JSON.parse(s); }catch(e){}
+  wtRender();
+}
+function wtSave(){ localStorage.setItem(WT_KEY, JSON.stringify(wtData)); }
+function wtChange(key, val){
+  if(val.trim()) wtData[key]=val; else delete wtData[key];
+  wtSave();
+}
+function wtReset(){
+  if(!confirm('Weight 장착 위치를 초기화하시겠습니까?')) return;
+  wtData={}; wtSave(); wtRender();
+}
+function wtRender(){
+  document.querySelectorAll('.wt-input').forEach(function(inp){
+    var k=inp.getAttribute('data-k');
+    inp.value=wtData[k]||'';
+  });
+}
+
+/* ── 초기화 ── */
+setTimeout(function(){
+  adreLoad();
+  wtLoad();
+  rpToggleInit();
+}, 0);
+
+
+/* ══════════ 탭 네비게이션 ══════════ */
+var TAB_KEY='active_tab_v1';
+function switchTab(name){
+  ['meas','calc','polar'].forEach(function(t){
+    var panel=document.getElementById('tab-'+t);
+    var btn=document.getElementById('tabbtn-'+t);
+    if(panel)panel.classList.toggle('on',t===name);
+    if(btn)btn.classList.toggle('on',t===name);
+  });
+  localStorage.setItem(TAB_KEY,name);
+  if(name==='polar'){setTimeout(function(){draw();},30);}
+}
+(function(){
+  var saved=localStorage.getItem(TAB_KEY);
+  if(saved&&saved!=='meas'){setTimeout(function(){switchTab(saved);},50);}
+})();
+
 </script>
+
+</div><!-- /tab-polar -->
+
+</div><!-- main-wrap -->
+</div><!-- app-shell end -->
+
+<!-- ══ 우측 고정 패널 ══ -->
+<div class="right-panel no-print" id="right-panel">
+
+  <!-- 헤더 -->
+  <div class="rp-header">
+    <div class="rp-title">설비 현황</div>
+    <div class="rp-toggles">
+      <label class="rp-toggle-item">
+        <input type="checkbox" id="tog-adre" checked onchange="rpToggle('adre-sect',this.checked,'tog-adre')">
+        ADRE 위치
+      </label>
+      <label class="rp-toggle-item">
+        <input type="checkbox" id="tog-wt" checked onchange="rpToggle('wt-sect',this.checked,'tog-wt')">
+        Weight 위치
+      </label>
+    </div>
+  </div>
+
+  <!-- ADRE 섹션 -->
+  <div id="adre-sect">
+    <div class="rp-sect-hd">ADRE 장비 위치 현황</div>
+    <div class="adre-chip-row" id="adre-chip-list"></div>
+    <div class="adre-grid-body">
+
+      <div class="plant-block">
+        <div class="plant-label">복합 3,4호기</div>
+        <div class="unit-grid">
+          <div class="unit-row">
+            <span class="unit-row-label">GT</span>
+            <div class="unit-cells">
+              <div class="unit-cell" data-uid="GT7" onclick="adreClick('GT7')">GT#7</div>
+              <div class="unit-cell" data-uid="GT8" onclick="adreClick('GT8')">GT#8</div>
+              <div class="unit-cell" data-uid="GT9" onclick="adreClick('GT9')">GT#9</div>
+              <div class="unit-cell" data-uid="GT10" onclick="adreClick('GT10')">GT#10</div>
+              <div class="unit-cell" data-uid="GT11" onclick="adreClick('GT11')">GT#11</div>
+              <div class="unit-cell" data-uid="GT12" onclick="adreClick('GT12')">GT#12</div>
+            </div>
+          </div>
+          <div class="unit-row">
+            <span class="unit-row-label">ST</span>
+            <div class="unit-cells">
+              <div class="unit-cell" data-uid="ST3" onclick="adreClick('ST3')">ST#3</div>
+              <div class="unit-cell" data-uid="ST4" onclick="adreClick('ST4')">ST#4</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plant-block">
+        <div class="plant-label">복합 5,6호기</div>
+        <div class="unit-grid">
+          <div class="unit-row">
+            <span class="unit-row-label">GT</span>
+            <div class="unit-cells">
+              <div class="unit-cell" data-uid="GT51" onclick="adreClick('GT51')">GT#51</div>
+              <div class="unit-cell" data-uid="GT52" onclick="adreClick('GT52')">GT#52</div>
+              <div class="unit-cell" data-uid="GT61" onclick="adreClick('GT61')">GT#61</div>
+              <div class="unit-cell" data-uid="GT62" onclick="adreClick('GT62')">GT#62</div>
+            </div>
+          </div>
+          <div class="unit-row">
+            <span class="unit-row-label">ST</span>
+            <div class="unit-cells">
+              <div class="unit-cell" data-uid="ST50" onclick="adreClick('ST50')">ST#50</div>
+              <div class="unit-cell" data-uid="ST60" onclick="adreClick('ST60')">ST#60</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plant-block">
+        <div class="plant-label">복합 7-9호기</div>
+        <div class="unit-grid">
+          <div class="unit-row">
+            <span class="unit-row-label">GT</span>
+            <div class="unit-cells">
+              <div class="unit-cell" data-uid="GT70" onclick="adreClick('GT70')">GT#70</div>
+              <div class="unit-cell" data-uid="GT80" onclick="adreClick('GT80')">GT#80</div>
+              <div class="unit-cell" data-uid="GT90" onclick="adreClick('GT90')">GT#90</div>
+            </div>
+          </div>
+          <div class="unit-row">
+            <span class="unit-row-label">ST</span>
+            <div class="unit-cells">
+              <div class="unit-cell" data-uid="ST70" onclick="adreClick('ST70')">ST#70</div>
+              <div class="unit-cell" data-uid="ST80" onclick="adreClick('ST80')">ST#80</div>
+              <div class="unit-cell" data-uid="ST90" onclick="adreClick('ST90')">ST#90</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    <!-- 진단룸 -->
+    <div class="plant-block">
+      <div class="plant-label" style="color:#6b7280;">진단룸</div>
+      <div class="unit-grid">
+        <div class="unit-row">
+          <div class="unit-cells" style="flex-wrap:wrap;gap:4px;">
+            <div class="unit-cell" data-uid="DIAG" onclick="adreClick('DIAG')" style="width:56px;font-size:9px;">진단룸</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    </div>
+    <div class="adre-summary" id="adre-summary"></div>
+  </div>
+
+  <!-- Weight 장착 위치 섹션 -->
+  <div id="wt-sect">
+    <div class="rp-sect-hd">Weight 장착 위치 (BRG#1~4)</div>
+    <div class="wt-body" id="wt-body">
+    <div class="wt-plant-grp">
+      <div class="wt-plant-label">복합 3,4호기</div>
+      <table class="wt-tbl">
+        <thead><tr>
+          <th style="width:34px"></th>
+          <th>#1</th><th>#2</th><th>#3</th><th>#4</th>
+        </tr></thead>
+        <tbody>
+        <tr>
+          <td class="unit-nm">GT#7</td>
+          <td><input class="wt-input" data-k="GT7_1" oninput="wtChange('GT7_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT7_2" oninput="wtChange('GT7_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT7_3" oninput="wtChange('GT7_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT7_4" oninput="wtChange('GT7_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">GT#8</td>
+          <td><input class="wt-input" data-k="GT8_1" oninput="wtChange('GT8_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT8_2" oninput="wtChange('GT8_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT8_3" oninput="wtChange('GT8_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT8_4" oninput="wtChange('GT8_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">GT#9</td>
+          <td><input class="wt-input" data-k="GT9_1" oninput="wtChange('GT9_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT9_2" oninput="wtChange('GT9_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT9_3" oninput="wtChange('GT9_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT9_4" oninput="wtChange('GT9_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">GT#10</td>
+          <td><input class="wt-input" data-k="GT10_1" oninput="wtChange('GT10_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT10_2" oninput="wtChange('GT10_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT10_3" oninput="wtChange('GT10_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT10_4" oninput="wtChange('GT10_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">GT#11</td>
+          <td><input class="wt-input" data-k="GT11_1" oninput="wtChange('GT11_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT11_2" oninput="wtChange('GT11_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT11_3" oninput="wtChange('GT11_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT11_4" oninput="wtChange('GT11_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">GT#12</td>
+          <td><input class="wt-input" data-k="GT12_1" oninput="wtChange('GT12_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT12_2" oninput="wtChange('GT12_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT12_3" oninput="wtChange('GT12_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT12_4" oninput="wtChange('GT12_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">ST#3</td>
+          <td><input class="wt-input" data-k="ST3_1" oninput="wtChange('ST3_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST3_2" oninput="wtChange('ST3_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST3_3" oninput="wtChange('ST3_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST3_4" oninput="wtChange('ST3_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">ST#4</td>
+          <td><input class="wt-input" data-k="ST4_1" oninput="wtChange('ST4_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST4_2" oninput="wtChange('ST4_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST4_3" oninput="wtChange('ST4_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST4_4" oninput="wtChange('ST4_4',this.value)" placeholder="-"></td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="wt-plant-grp">
+      <div class="wt-plant-label">복합 5,6호기</div>
+      <table class="wt-tbl">
+        <thead><tr>
+          <th style="width:34px"></th>
+          <th>#1</th><th>#2</th><th>#3</th><th>#4</th>
+        </tr></thead>
+        <tbody>
+        <tr>
+          <td class="unit-nm">GT#51</td>
+          <td><input class="wt-input" data-k="GT51_1" oninput="wtChange('GT51_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT51_2" oninput="wtChange('GT51_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT51_3" oninput="wtChange('GT51_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT51_4" oninput="wtChange('GT51_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">GT#52</td>
+          <td><input class="wt-input" data-k="GT52_1" oninput="wtChange('GT52_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT52_2" oninput="wtChange('GT52_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT52_3" oninput="wtChange('GT52_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT52_4" oninput="wtChange('GT52_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">GT#61</td>
+          <td><input class="wt-input" data-k="GT61_1" oninput="wtChange('GT61_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT61_2" oninput="wtChange('GT61_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT61_3" oninput="wtChange('GT61_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT61_4" oninput="wtChange('GT61_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">GT#62</td>
+          <td><input class="wt-input" data-k="GT62_1" oninput="wtChange('GT62_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT62_2" oninput="wtChange('GT62_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT62_3" oninput="wtChange('GT62_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT62_4" oninput="wtChange('GT62_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">ST#50</td>
+          <td><input class="wt-input" data-k="ST50_1" oninput="wtChange('ST50_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST50_2" oninput="wtChange('ST50_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST50_3" oninput="wtChange('ST50_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST50_4" oninput="wtChange('ST50_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">ST#60</td>
+          <td><input class="wt-input" data-k="ST60_1" oninput="wtChange('ST60_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST60_2" oninput="wtChange('ST60_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST60_3" oninput="wtChange('ST60_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST60_4" oninput="wtChange('ST60_4',this.value)" placeholder="-"></td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="wt-plant-grp">
+      <div class="wt-plant-label">복합 7-9호기</div>
+      <table class="wt-tbl">
+        <thead><tr>
+          <th style="width:34px"></th>
+          <th>#1</th><th>#2</th><th>#3</th><th>#4</th>
+        </tr></thead>
+        <tbody>
+        <tr>
+          <td class="unit-nm">GT#70</td>
+          <td><input class="wt-input" data-k="GT70_1" oninput="wtChange('GT70_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT70_2" oninput="wtChange('GT70_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT70_3" oninput="wtChange('GT70_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT70_4" oninput="wtChange('GT70_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">GT#80</td>
+          <td><input class="wt-input" data-k="GT80_1" oninput="wtChange('GT80_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT80_2" oninput="wtChange('GT80_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT80_3" oninput="wtChange('GT80_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT80_4" oninput="wtChange('GT80_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">GT#90</td>
+          <td><input class="wt-input" data-k="GT90_1" oninput="wtChange('GT90_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT90_2" oninput="wtChange('GT90_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT90_3" oninput="wtChange('GT90_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="GT90_4" oninput="wtChange('GT90_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">ST#70</td>
+          <td><input class="wt-input" data-k="ST70_1" oninput="wtChange('ST70_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST70_2" oninput="wtChange('ST70_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST70_3" oninput="wtChange('ST70_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST70_4" oninput="wtChange('ST70_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">ST#80</td>
+          <td><input class="wt-input" data-k="ST80_1" oninput="wtChange('ST80_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST80_2" oninput="wtChange('ST80_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST80_3" oninput="wtChange('ST80_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST80_4" oninput="wtChange('ST80_4',this.value)" placeholder="-"></td>
+        </tr>
+        <tr>
+          <td class="unit-nm">ST#90</td>
+          <td><input class="wt-input" data-k="ST90_1" oninput="wtChange('ST90_1',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST90_2" oninput="wtChange('ST90_2',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST90_3" oninput="wtChange('ST90_3',this.value)" placeholder="-"></td>
+          <td><input class="wt-input" data-k="ST90_4" oninput="wtChange('ST90_4',this.value)" placeholder="-"></td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+    </div>
+  </div>
+
+  <!-- 푸터 -->
+  <div class="rp-footer">
+    <div class="rp-note-label">비고 / 메모</div>
+    <textarea class="rp-note-area" id="adre-note" placeholder="특이사항, 일정, 메모..." oninput="adreSaveNote()"></textarea>
+    <div class="rp-btn-row">
+      <button class="rp-reset-btn" onclick="adreReset()">ADRE 초기화</button>
+      <button class="rp-reset-btn" onclick="wtReset()">Weight 초기화</button>
+    </div>
+  </div>
+
+</div>
+
+
 </body>
 </html>
